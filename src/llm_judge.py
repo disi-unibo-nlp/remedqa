@@ -316,8 +316,8 @@ Your final answer must follow this Output Format:
                 logprobs = o.logprobs
                 
                 logger.info(f"Response:\n{completion}")
-                thinking = completion.split("</think>")[0]
-                completion = completion.split("</think>")[1]
+                thinking = completion.split("</think>")[0] if "</think>" in completion else completion
+                completion = completion.split("</think>")[1] if "</think>" in completion else ""
                 final_answer = extract_answer(completion) if completion else None
                 justification = completion.split("Justification:")[1].strip()
                 
