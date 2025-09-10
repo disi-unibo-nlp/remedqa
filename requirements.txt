@@ -1,0 +1,3 @@
+vllm
+flash_attn
+datasets
