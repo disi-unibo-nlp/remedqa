@@ -35,7 +35,7 @@ def parse_arguments():
     parser.add_argument("--out_dir", type=str, default="./out", help="Outputs directory")
     parser.add_argument("--max_samples", type=int, default=-1, help="Maximum number of data to process in train set. Default is -1 to process all data.")
     parser.add_argument("--start_idx", type=int, default=0, help="Index of first prompt to process.")
-    parser.add_argument("--batch_size", type=int, default=16, help="Maximum number of data to process per batch.")
+    parser.add_argument("--batch_size", type=int, default=12, help="Maximum number of data to process per batch.")
     parser.add_argument("--cache_dir", type=str, default=None, help="Cache directory to store model weights")
     parser.add_argument("--max_model_len", type=int, default=8000, help="Maximum input sequence length")
     parser.add_argument("--top_p", type=float, default=1.0, help="Top p sampling.")
@@ -43,7 +43,7 @@ def parse_arguments():
     parser.add_argument("--temperature", type=float, default=0.0, help="Sampling temperature parameter")
     parser.add_argument("--n_gpus", type=int, default=1, help="Number of GPUs to use for inference.")
     parser.add_argument("--max_tokens", type=int, default=32000, help="Max number of tokens to generate in CoT prompting.")
-    parser.add_argument("--subset", type=str, default="mmlu", help="Subset of the dataset to use")
+    parser.add_argument("--subset", type=str, default="medmcqa", help="Subset of the dataset to use")
     parser.add_argument("--mode", type=str, choices=["judge"], default="judge", help="Mode of operation: single or multiple attempts")
     parser.add_argument("--strategy", type=str, choices=["cot", "direct"], default="cot", help="Inference strategy: chain of thought (cot) or direct")
 
@@ -173,7 +173,9 @@ if __name__ == "__main__":
 
     with open(args.dataset_path.replace(".json", "_open.json")) as f:
         dataset_open = json.load(f)[args.subset]
+
     dataset_open = [(idx, item) for (idx, item) in dataset_open.items()]
+    id_open2question = {idx: item['open_question'] for (idx, item) in dataset_open}
     non_possible_ids = [idx for (idx, item) in dataset_open if item['open_question'] == 'Not possible']
     #dataset_open = [(idx, item) for (idx, item) in dataset_open if el['open_question'] != 'Not possible']
     
@@ -189,10 +191,6 @@ if __name__ == "__main__":
         dataset = json.load(f)[args.subset]
     dataset = [(idx, item) for idx, item in dataset.items() if idx in completions_ids]
 
-    
-
-
-    
     id2answer_mcq = {}
     for compl in completion_mcq:
         compl_id = compl['id_question']
@@ -316,8 +314,11 @@ Your final answer must follow this Output Format:
                 logprobs = o.logprobs
                 
                 logger.info(f"Response:\n{completion}")
-                thinking = completion.split("</think>")[0] if "</think>" in completion else completion
-                completion = completion.split("</think>")[1] if "</think>" in completion else ""
+                parts = completion.split("</think>", 1)
+                thinking = parts[0]
+                completion = parts[1] if len(parts) > 1 else ""
+                #thinking = completion.split("</think>")[0] if "</think>" in completion else completion
+                #completion = completion.split("</think>")[1] if "</think>" in completion else ""
                 final_answer = extract_answer(completion) if completion else None
                 justification = completion.split("Justification:")[1].strip()
                 
