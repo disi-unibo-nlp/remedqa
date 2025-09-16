@@ -18,6 +18,7 @@ from datasets import load_dataset, Dataset
 from vllm import LLM, SamplingParams
 from transformers import AutoTokenizer
 from huggingface_hub import login
+from openai import OpenAI
 
 from datetime import datetime
 # Load variables from the .env file
@@ -59,6 +60,34 @@ def parse_arguments():
 #         return "E"
 
 import re
+
+def extract_json_block(text, parse=True):
+    """
+    Extracts the content between ```json and ``` in a string.
+    
+    Args:
+        text (str): Input string containing a ```json ... ``` block.
+        parse (bool): If True, return parsed JSON object (dict/list).
+                      If False, return raw JSON string.
+
+    Returns:
+        dict/list/str or None: Parsed JSON (default) or raw string. 
+                               Returns None if no block found or JSON invalid.
+    """
+    # regex to capture content between ```json and ```
+    match = re.search(r"```json\s*(.*?)\s*```", text, re.DOTALL)
+    if not match:
+        return None  # no JSON block found
+
+    json_str = match.group(1).strip()
+
+    if parse:
+        try:
+            return json.loads(json_str)
+        except json.JSONDecodeError:
+            return None  # invalid JSON
+    else:
+        return json_str
 
 def extract_answer(response: str):
     """
@@ -113,6 +142,11 @@ if __name__ == "__main__":
 
     HF_TOKEN = os.getenv("HF_TOKEN")
     login(token="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")
+    GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+    client = OpenAI(
+        api_key=GEMINI_API_KEY,
+        base_url="https://generativelanguage.googleapis.com/v1beta/openai/"
+    )
 
     now = datetime.now()
     # Format the date and time as a string
@@ -198,6 +232,13 @@ if __name__ == "__main__":
         extracted_answer = extract_mcq_answer("Final Answer: " + compl)
         #print(extracted_answer)
         id2answer_mcq[compl_id] = extracted_answer
+    
+    id2answer_open = {}
+    for compl in completions:
+        compl_id = compl['id_question']
+        compl = compl['completion'].strip() if "Final Answer:" in compl['completion'] else "None"
+        extracted_answer = compl
+        id2answer_open[compl_id] = extracted_answer
 
     
     from collections import Counter
@@ -230,17 +271,17 @@ if __name__ == "__main__":
     logger.info(f"First sample:\n{dataset[0]}")
     logger.info(f"Selecting {args.mode} mode.")
     hits = 0
-    for i, ((question_id, item), completion) in enumerate(tqdm(zip(dataset, completions))): 
+    for i, ((question_id, item)) in enumerate(tqdm(dataset)): 
     
         question = item['question']
         options = item['options']
         gold_answer = item['answer'] if args.mode != "no-symbols" else item['options'][item['answer']]
-        given_answer = completion['completion']
-        prompt = f"Question:\n{question.strip()}\n\nOpen-ended Answer: {given_answer}\n\nPossible Options:\nA) {options['A']}\nB) {options['B']}\nC) {options['C']}\nD) {options['D'].strip()}"
+        given_answer = id2answer_open[question_id]
+        user_input = f"""Question: "{question.strip()}"\n\nOpen-ended Answer: "{given_answer}"\n\nPossible Options:\nA) {options['A']}\nB) {options['B']}\nC) {options['C']}\nD) {options['D'].strip()}"""
         
         
         #system_instruction = "You are a medical expert. Given an original question, a student’s open-ended answer, and five multiple-choice options (A–D and E for 'None of the above'), your task is to determine which option the student’s answer corresponds to. If the answer does not match any provided option, choose 'E' (None of the above). You MUST first provide a short explanation prefixed by '### Explanation:' and then return your final answer prefixed by '### Answer:'."
-        system_instruction = f"""
+        prompt = f"""
 You are a medical expert and evaluation judge. 
 Your task is to map an open-ended student answer to the most appropriate multiple-choice option from the given question.
 
@@ -253,7 +294,7 @@ Instructions:
 6. If the answer is too vague or does not match any option, output "No clear match" with a short explanation.
 7. Output only the option letter (e.g., "A"), or a list in case of multiple mappings, along with a short justification.
 
-{prompt}
+{user_input}
 
 Your final answer must follow this Output Format:
 - Mapped Option: [Letter or list of letters]
@@ -262,7 +303,7 @@ Your final answer must follow this Output Format:
 
         messages = [
             #{"role": "system", "content": system_instruction},
-            {"role": "user", "content": system_instruction + "\n\n " + prompt }
+            {"role": "user", "content": prompt }
         ]
             
         text = tokenizer.apply_chat_template(
@@ -282,10 +323,17 @@ Your final answer must follow this Output Format:
             "question": question,
             "options": options,
             "gold_answer": gold_answer,
+            "given_answer": given_answer
         })
         #prompts.append((item['id'], text, messages))
     
     
+    with open(f"{output_dir}/sample_prompts.txt", "w") as f:
+        for prompt in prompts[:5]:
+            f.write("--- PROMPT ---\n\n")
+            f.write(prompt['prompt'])
+            f.write("---------------\n\n")
+
     batches = [prompts[i:i+args.batch_size] for i in range(0, len(prompts), args.batch_size)]
 
     logger.info(f"Number of prompts: {len(prompts) * args.n_out_sequences}")
@@ -301,6 +349,7 @@ Your final answer must follow this Output Format:
         options_batch = [dict(el['options']) for el in batch]
         logger.info(f"Batch {id_batch} - options: {options}")
         golds = [el['gold_answer'] for el in batch]
+        given_answers = [el['given_answer'] for el in batch]
 
         outputs = llm.generate(input_prompts, sampling_params, use_tqdm=False)
 
@@ -320,21 +369,22 @@ Your final answer must follow this Output Format:
                 #thinking = completion.split("</think>")[0] if "</think>" in completion else completion
                 #completion = completion.split("</think>")[1] if "</think>" in completion else ""
                 final_answer = extract_answer(completion) if completion else None
-                justification = completion.split("Justification:")[1].strip()
+                justification = completion.split("Justification:")[1].strip() if "Justification:" in completion else ""
                 
-                if args.strategy == "direct" and final_answer is not None:
-                    confidence = None
-                    for logprob in logprobs:
-                        for id_token, token_logprob in logprob.items():
-                            if token_logprob.rank == 1 and "answer" not in token_logprob.decoded_token.lower() and final_answer in token_logprob.decoded_token:
-                                logger.info(f"Logprobs: {token_logprob.decoded_token} - {round(np.exp(token_logprob.logprob) * 100, 2)}")
-                                confidence = round(np.exp(token_logprob.logprob) * 100, 2)
-                                break
+                # if args.strategy == "direct" and final_answer is not None:
+                #     confidence = None
+                #     for logprob in logprobs:
+                #         for id_token, token_logprob in logprob.items():
+                #             if token_logprob.rank == 1 and "answer" not in token_logprob.decoded_token.lower() and final_answer in token_logprob.decoded_token:
+                #                 logger.info(f"Logprobs: {token_logprob.decoded_token} - {round(np.exp(token_logprob.logprob) * 100, 2)}")
+                #                 confidence = round(np.exp(token_logprob.logprob) * 100, 2)
+                #                 break
         
                 gold_answer = golds[id_out]
                 question_id = ids[id_out]
                 question = questions_batch[id_out]
                 options = options_batch[id_out]
+                given_answer = given_answers[id_out]
 
                 if final_answer is None:
                     logger.warning(f"Unable to extract answer from question: {question_id}")
@@ -345,10 +395,72 @@ Your final answer must follow this Output Format:
                         f.write("\n")
                     continue
                 
+                elif final_answer == "No clear match":
+                    
+
+                    check_open_answer_prompt = f"""
+You are an expert examiner. You will receive:
+- The original multiple-choice question (MCQ) with options and the correct option.
+- A student's open-ended answer, given without being shown the options and which does not clearly match any of the provided options.
+
+Your task is to evaluate whether the student's answer is a **valid alternative answer** to the question, based on standard knowledge. 
+Ignore the MCQ options — focus only on whether the answer could reasonably be accepted as correct in concept, even though it is not one of the listed options.
+ 
+Return your evaluation in JSON format as follows:
+```json 
+{{
+  "valid_alternative": "Yes" | "Partially" | "No",
+  "justification": "A brief explanation why the student's answer is or is not a valid alternative answer."
+}}
+```
+
+Now evaluate the following:
+ 
+Original Question: {question}
+Options: {options}
+Correct Option: {gold_answer}
+Student Answer: {given_answer}
+"""
+
+                    response = client.chat.completions.create(
+                        model="gemini-2.5-flash",
+                        messages=[{"role": "user", "content": check_open_answer_prompt}],
+                        extra_body={
+                        'extra_body': {
+                            "google": {
+                            "thinking_config": {
+                                "thinking_budget": 1024,
+                                "include_thoughts": True
+                            }
+                            }
+                        }
+                        }
+                    )
+                    print("-----------")
+                    print(response)
+                    print(response.choices[0].message)
+                    print("-----------")
+                    judge_completion = response.choices[0].message.content
+                    judge_thinking = judge_completion.split("</thought>", 1)[0]
+                    judge_answer = judge_completion.split("</thought>", 1)[1] if "</thought>" in judge_completion else ""
+                    json_block = extract_json_block(judge_answer)
+                    if json_block is None:
+                        json_block = {"valid_alternative": "No", "justification": "No valid JSON block found in the response."}
+                    valid_alternative = json_block.get("valid_alternative", "No")
+                    judge_justification = json_block.get("justification", "")
+                    is_valid_aternative = valid_alternative
+
+                    resp_dict = response.model_dump()
+                    with open(f"{output_dir}/judges_alternative_{args.subset}.jsonl", "a") as f:
+                        json.dump(resp_dict, f)
+                        f.write("\n")
+                
                 logger.info(f"Final answer: {final_answer}, Gold answer: {gold_answer}")
         
-
-                correct = str(final_answer) == str(gold_answer)
+                if final_answer != "No clear match":
+                    correct = str(final_answer) == str(gold_answer)
+                else:
+                    correct = is_valid_aternative.lower() == "yes"
 
                 mcq_response = id2answer_mcq[question_id]
                 consistent = str(final_answer) == str(mcq_response)
@@ -357,7 +469,7 @@ Your final answer must follow this Output Format:
                     hits += 1
             
                 with open(f"{output_dir}/judges_{args.subset}.jsonl", "a") as f:
-                    compl_dict = {"question_id": question_id, "gold_answer": gold_answer, "mcq_response": mcq_response, "open_response": final_answer, "consistent": consistent, "completion": completion, "correct": correct, "justification": justification}
+                    compl_dict = {"question_id": question_id, "gold_answer": gold_answer, "mcq_response": mcq_response, "open_response": final_answer, "consistent": consistent, "completion": completion, "correct": correct, "justification": justification, "valid_alternative": is_valid_aternative if final_answer == "No clear match" else None, "justification_alternative": judge_justification if final_answer == "No clear match" else None}
                     if args.strategy == "direct":
                         compl_dict["confidence"] = confidence
                     json.dump(compl_dict, f)
