@@ -31,12 +31,13 @@ os.environ["VLLM_WORKER_MULTIPROC_METHOD"] = "spawn"
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Script Arguments")
     
-    parser.add_argument("--model_path", type=str, default="Qwen/Qwen3-32B-AWQ", help="Model's HF directory or local path")
+    parser.add_argument("--judge_model_name", type=str, default="Qwen/Qwen3-32B-AWQ", help="Model's HF directory or local path")
+    parser.add_argument("--completion_dir", type=str, default="out/completions/medgemma", help="Model's completion directory name")
     parser.add_argument("--dataset_path", type=str, default="data/benchmark.json", help="Dataset HF directory")
-    parser.add_argument("--out_dir", type=str, default="./out", help="Outputs directory")
+    parser.add_argument("--out_dir", type=str, default="./out/completions", help="Outputs directory")
     parser.add_argument("--max_samples", type=int, default=-1, help="Maximum number of data to process in train set. Default is -1 to process all data.")
     parser.add_argument("--start_idx", type=int, default=0, help="Index of first prompt to process.")
-    parser.add_argument("--batch_size", type=int, default=12, help="Maximum number of data to process per batch.")
+    parser.add_argument("--batch_size", type=int, default=8, help="Maximum number of data to process per batch.")
     parser.add_argument("--cache_dir", type=str, default=None, help="Cache directory to store model weights")
     parser.add_argument("--max_model_len", type=int, default=8000, help="Maximum input sequence length")
     parser.add_argument("--top_p", type=float, default=1.0, help="Top p sampling.")
@@ -158,8 +159,9 @@ if __name__ == "__main__":
     args = parse_arguments()
     print(args)
 
-    actual_model_name = args.model_path.split("/")[-1]
-    output_dir = f"./out/completions/{actual_model_name}/{args.mode}/{args.subset}/" + now_dir
+    actual_model_name = args.judge_model_name.split("/")[-1]
+    model_evaluated = args.completion_dir.split("/")[-1]
+    output_dir = f"{args.out_dir}/{actual_model_name}/{args.mode}/{model_evaluated}/{args.subset}/" + now_dir
     os.makedirs(output_dir, exist_ok=True)
 
     # set up logging to file
@@ -180,7 +182,7 @@ if __name__ == "__main__":
         import ray
         ray.init(_temp_dir="/my_local_tmp_dir", log_to_driver=False)
     
-    tokenizer = AutoTokenizer.from_pretrained(args.model_path)
+    tokenizer = AutoTokenizer.from_pretrained(args.judge_model_name)
 
     sampling_params = SamplingParams(
         n=args.n_out_sequences, 
@@ -194,11 +196,11 @@ if __name__ == "__main__":
 
     
     llm = LLM(
-        model=args.model_path,
-        #tokenizer=args.model_path,
+        model=args.judge_model_name,
+        #tokenizer=args.judge_model_name,
         gpu_memory_utilization=.95,
-        dtype="half" if "awq" in args.model_path.lower() else "auto",
-        quantization="awq" if "awq" in args.model_path.lower() else None,
+        dtype="half" if "awq" in args.judge_model_name.lower() else "auto",
+        quantization="awq" if "awq" in args.judge_model_name.lower() else None,
         enforce_eager=True,
         max_model_len=args.max_model_len if args.max_model_len > 0 else None,
         trust_remote_code=True,
@@ -214,7 +216,7 @@ if __name__ == "__main__":
     #dataset_open = [(idx, item) for (idx, item) in dataset_open if el['open_question'] != 'Not possible']
     
 
-    with open(f'out/completions/medgemma/{args.subset}/generations.jsonl') as f:
+    with open(f'{args.completion_dir}/{args.subset}/generations.jsonl') as f:
         completions = [json.loads(line) for line in f.readlines()]
         completions = [el for el in completions if el['id_question'] not in non_possible_ids]
         completion_mcq = completions[::2]
@@ -470,8 +472,7 @@ Student Answer: {given_answer}
             
                 with open(f"{output_dir}/judges_{args.subset}.jsonl", "a") as f:
                     compl_dict = {"question_id": question_id, "gold_answer": gold_answer, "mcq_response": mcq_response, "open_response": final_answer, "consistent": consistent, "completion": completion, "correct": correct, "justification": justification, "valid_alternative": is_valid_aternative if final_answer == "No clear match" else None, "justification_alternative": judge_justification if final_answer == "No clear match" else None}
-                    if args.strategy == "direct":
-                        compl_dict["confidence"] = confidence
+                    
                     json.dump(compl_dict, f)
                     f.write("\n")
     
