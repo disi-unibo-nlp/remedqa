@@ -109,6 +109,8 @@ class ModelRequestData(NamedTuple):
     engine_args: EngineArgs
     prompts: list[str]
     id_prompts: list[str]
+    mode_prompts: list[str]
+    data_info: Optional[list[dict]] = None
     stop_token_ids: Optional[list[int]] = None
     lora_requests: Optional[list[LoRARequest]] = None
 
@@ -124,10 +126,78 @@ def extract_mcq_answer(response: str):
     - 'Final Answer: C'
     Returns the option letter as a string (e.g., 'A'), or None if not found.
     """
-    match = re.search(r"(?:Final Answer:|Answer:)\s*\(?([A-D])\)?", response, re.IGNORECASE)
+    match = re.search(r"(?:Final Answer:|Answer:)\s*\(?([A-E])\)?", response, re.IGNORECASE)
     if match:
         return match.group(1).upper()
     return None
+
+def extract_mcq_answer_roman(response: str, convert_roman=False):
+    """
+    Extracts the MCQ letter from a response containing 'Final Answer: (X)'.
+    
+    Handles cases like:
+    - 'Final Answer: (I)'
+    - 'Final Answer: I'
+    - 'Answer: (II)'
+    - 'Final Answer: III'
+    Returns the option letter as a string (e.g., 'A'), or None if not found.
+    """
+    if convert_roman:
+        roman_to_letter = { 'I': 'A', 'II': 'B', 'III': 'C', 'IV': 'D' }
+        match = re.search(r"(?:Final Answer:|Answer:)\s*\(?([IVX]+)\)?", response, re.IGNORECASE)
+        if match:
+            roman_numeral = match.group(1).upper()
+            return roman_to_letter.get(roman_numeral, None)
+    else:
+        match = re.search(r"(?:Final Answer:|Answer:)\s*\(?([A-D])\)?", response, re.IGNORECASE)
+        if match:
+            return match.group(1).upper()
+    return None
+   
+
+def extract_open_answer(response: str):
+    """
+    Extracts the open-ended answer from a response containing 'Final Answer: <answer>'.
+    
+    Handles cases like:
+    - 'Final Answer: The answer is 42.'
+    - 'Final Answer: 42'
+    - 'Answer: The capital of France is Paris.'
+    Returns the answer as a string, or None if not found.
+    """
+    match = re.search(r"(?:Final Answer:|Answer:)\s*(.+)", response, re.IGNORECASE)
+    if match:
+        return match.group(1).strip()
+    return None
+
+def extract_incorrect_answer(response: str):
+    """
+    Extracts one or more MCQ letters from a response after 'Final Answer:' or 'Answer:'.
+    Handles cases like:
+      - Final Answer: [A, C]
+      - Final Answer: (A, B, C)
+      - Final Answer: *A, B, C*
+      - Final Answer: A, B, C
+    Returns a list of option letters (['A','C']), or None if not found.
+    """
+    # regex: look after Final Answer: or Answer:
+    # accept optional brackets (), [], or * * around the letters
+    pattern = r'(?:Final Answer:|Answer:)\s*[\[\(\*\s]*([A-D](?:\s*,\s*[A-D])*)[\]\)\*\s]*'
+    match = re.search(pattern, response, re.IGNORECASE)
+    if match:
+        answers = [ans.strip().upper() for ans in match.group(1).split(",")]
+        return answers
+    return None
+
+def extract_final_answer(response: str, mode: str):
+    if mode in ['mcq', 'options_only', 'none_of_the_provided', 'fixed_pos', "idk_answer"]:
+        return extract_mcq_answer(response)
+    elif mode == "roman_numeral":
+        return extract_mcq_answer_roman(response)
+    elif mode == "incorrect":
+        return extract_incorrect_answer(response)
+    else:
+        return extract_open_answer(response)
 
 def run_qwen3_8b(questions: list[str], modality=None) -> ModelRequestData:
     
@@ -144,18 +214,25 @@ def run_qwen3_8b(questions: list[str], modality=None) -> ModelRequestData:
         enforce_eager=False,
     )
 
-    prompts = [
-        tokenizer.apply_chat_template([
-            {"role": "user", "content": question}
-        ], tokenize=False, add_generation_prompt=True, enable_thinking=True)
-        for idx, question in questions
-    ]
+    prompts, id_prompts, mode_prompts, data_info = [], [], [], []
 
-    id_prompts = [idx for idx, question in questions]
+    for idx, question, mode, info in questions:
+        prompts.append(
+            tokenizer.apply_chat_template([
+                {"role": "user", "content": question}
+            ], tokenize=False, add_generation_prompt=True, enable_thinking=True)
+        )
+
+        id_prompts.append(idx)
+        mode_prompts.append(mode)
+        data_info.append(info)
+
     return ModelRequestData(
         engine_args=engine_args,
         prompts=prompts,
-        id_prompts=id_prompts
+        id_prompts=id_prompts,
+        mode_prompts=mode_prompts,
+        data_info=data_info
     ), tokenizer
 
 def run_llama3(questions: list[str], modality=None) -> ModelRequestData:
@@ -172,20 +249,27 @@ def run_llama3(questions: list[str], modality=None) -> ModelRequestData:
         quantization="awq" if "awq" in model_name.lower() else None,
         enforce_eager=False,
     )
+    
+    prompts, id_prompts, mode_prompts, data_info = [], [], [], []
 
-    prompts = [
-        tokenizer.apply_chat_template([
-            {"role": "system", "content": "You are a medical expert."},
-            {"role": "user", "content": question}
-        ], tokenize=False, add_generation_prompt=True)
-        for idx, question in questions
-    ]
+    for idx, question, mode, info in questions:
+        prompts.append(
+            tokenizer.apply_chat_template([
+                {"role": "system", "content": "You are a medical expert."},
+                {"role": "user", "content": question}
+            ], tokenize=False, add_generation_prompt=True)
+        )
 
-    id_prompts = [idx for idx, question in questions]
+        id_prompts.append(idx)
+        mode_prompts.append(mode)
+        data_info.append(info)
+
     return ModelRequestData(
         engine_args=engine_args,
         prompts=prompts,
-        id_prompts=id_prompts
+        id_prompts=id_prompts,
+        mode_prompts=mode_prompts,
+        data_info=data_info
     ), tokenizer
 
 
@@ -204,16 +288,23 @@ def run_jsl_medllama(questions: list[str], modality=None) -> ModelRequestData:
         enforce_eager=False,
     )
 
-    prompts = [
-        f'''###Question: {question}\n###Answer:'''
-        for idx, question in questions
-    ]
+    prompts, id_prompts, mode_prompts, data_info = [], [], [], []
 
-    id_prompts = [idx for idx, question in questions]
+    for idx, question, mode, info in questions:
+        prompts.append(
+            f'''###Question: {question}\n###Answer:'''
+        )
+
+        id_prompts.append(idx)
+        mode_prompts.append(mode)
+        data_info.append(info)
+
     return ModelRequestData(
         engine_args=engine_args,
         prompts=prompts,
-        id_prompts=id_prompts
+        id_prompts=id_prompts,
+        mode_prompts=mode_prompts,
+        data_info=data_info
     ), tokenizer
 
 def run_phi(questions: list[str], modality=None) -> ModelRequestData:
@@ -231,19 +322,26 @@ def run_phi(questions: list[str], modality=None) -> ModelRequestData:
         enforce_eager=False,
     )
 
-    prompts = [
-        tokenizer.apply_chat_template([
-            {"role": "system", "content": "You are a medical expert."},
-            {"role": "user", "content": question}
-        ], tokenize=False, add_generation_prompt=True)
-        for idx, question in questions
-    ]
+    prompts, id_prompts, mode_prompts, data_info = [], [], [], []
 
-    id_prompts = [idx for idx, question in questions]
+    for idx, question, mode, info in questions:
+        prompts.append(
+            tokenizer.apply_chat_template([
+                {"role": "system", "content": "You are a medical expert."},
+                {"role": "user", "content": question}
+            ], tokenize=False, add_generation_prompt=True)
+        )
+
+        id_prompts.append(idx)
+        mode_prompts.append(mode)
+        data_info.append(info)
+
     return ModelRequestData(
         engine_args=engine_args,
         prompts=prompts,
-        id_prompts=id_prompts
+        id_prompts=id_prompts,
+        mode_prompts=mode_prompts,
+        data_info=data_info
     ), tokenizer
 
 def run_mediphi(questions: list[str], modality=None) -> ModelRequestData:
@@ -261,19 +359,26 @@ def run_mediphi(questions: list[str], modality=None) -> ModelRequestData:
         enforce_eager=False,
     )
 
-    prompts = [
-        tokenizer.apply_chat_template([
-            {"role": "system", "content": "You are a medical expert."},
-            {"role": "user", "content": question}
-        ], tokenize=False, add_generation_prompt=True)
-        for idx, question in questions
-    ]
+    prompts, id_prompts, mode_prompts, data_info = [], [], [], []
 
-    id_prompts = [idx for idx, question in questions]
+    for idx, question, mode, info in questions:
+        prompts.append(
+            tokenizer.apply_chat_template([
+                {"role": "system", "content": "You are a medical expert."},
+                {"role": "user", "content": question}
+            ], tokenize=False, add_generation_prompt=True)
+        )
+
+        id_prompts.append(idx)
+        mode_prompts.append(mode)
+        data_info.append(info)
+
     return ModelRequestData(
         engine_args=engine_args,
         prompts=prompts,
-        id_prompts=id_prompts
+        id_prompts=id_prompts,
+        mode_prompts=mode_prompts,
+        data_info=data_info
     ), tokenizer
 
 def run_med42(questions: list[str], modality=None) -> ModelRequestData:
@@ -291,19 +396,26 @@ def run_med42(questions: list[str], modality=None) -> ModelRequestData:
         enforce_eager=False,
     )
 
-    prompts = [
-        tokenizer.apply_chat_template([
-            {"role": "system", "content": "You are a medical expert."},
-            {"role": "user", "content": question}
-        ], tokenize=False, add_generation_prompt=True)
-        for idx, question in questions
-    ]
+    prompts, id_prompts, mode_prompts, data_info = [], [], [], []
 
-    id_prompts = [idx for idx, question in questions]
+    for idx, question, mode, info in questions:
+        prompts.append(
+            tokenizer.apply_chat_template([
+                {"role": "system", "content": "You are a medical expert."},
+                {"role": "user", "content": question}
+            ], tokenize=False, add_generation_prompt=True)
+        )
+
+        id_prompts.append(idx)
+        mode_prompts.append(mode)
+        data_info.append(info)
+
     return ModelRequestData(
         engine_args=engine_args,
         prompts=prompts,
-        id_prompts=id_prompts
+        id_prompts=id_prompts,
+        mode_prompts=mode_prompts,
+        data_info=data_info
     ), tokenizer
 
 def run_gemma3(questions: list[str], modality=None) -> ModelRequestData:
@@ -320,22 +432,30 @@ def run_gemma3(questions: list[str], modality=None) -> ModelRequestData:
         enforce_eager=False,
     )
 
-    prompts = [
-        tokenizer.apply_chat_template([
-            {"role": "user", "content": question}
-        ], tokenize=False, add_generation_prompt=True)
-        for idx, question in questions
-    ]
+    prompts, id_prompts, mode_prompts, data_info = [], [], [], []
 
-    id_prompts = [idx for idx, question in questions]
+    for idx, question, mode, info in questions:
+        prompts.append(
+            tokenizer.apply_chat_template(
+                [{"role": "user", "content": question}], 
+                tokenize=False, add_generation_prompt=True
+            )
+        )
+
+        id_prompts.append(idx)
+        mode_prompts.append(mode)
+        data_info.append(info)
+
     return ModelRequestData(
         engine_args=engine_args,
         prompts=prompts,
-        id_prompts=id_prompts
+        id_prompts=id_prompts,
+        mode_prompts=mode_prompts, 
+        data_info=data_info
     ), tokenizer
 
-def run_medgemma(questions: list[str], modality: str) -> ModelRequestData:
-    assert modality in ["image", "text"]
+def run_medgemma(questions: list[str], modality=None) -> ModelRequestData:
+    
     model_name = "google/medgemma-4b-it"
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     engine_args = EngineArgs(
@@ -343,23 +463,28 @@ def run_medgemma(questions: list[str], modality: str) -> ModelRequestData:
         max_model_len=2048,
         max_num_seqs=1,
         mm_processor_kwargs={"do_pan_and_scan": True},
-        limit_mm_per_prompt={modality: 1},
+        limit_mm_per_prompt={"image": 1},
     )
 
-    prompts = [
-        (
+    prompts, id_prompts, mode_prompts, data_info = [], [], [], []
+
+    for idx, question, mode, info in questions:
+        prompts.append((
             "<bos><start_of_turn>user\n"
             f"<start_of_image>{question}<end_of_turn>\n"
             "<start_of_turn>model\n"
-        )
-        for idx, question in questions
-    ]
+        ))
 
-    id_prompts = [idx for idx, question in questions]
+        id_prompts.append(idx)
+        mode_prompts.append(mode)
+        data_info.append(info)
+
     return ModelRequestData(
         engine_args=engine_args,
         prompts=prompts,
-        id_prompts=id_prompts
+        id_prompts=id_prompts,
+        mode_prompts=mode_prompts,
+        data_info=data_info
     ), tokenizer
 
 
@@ -465,79 +590,102 @@ def parse_args():
         default="medqa",
     )
 
+    parser.add_argument('--modes', nargs='+',
+        choices=['mcq', 'open', 'incorrect', 'options_only', 'roman_numeral', 
+                'yes_no_maybe', 'none_of_the_provided', 'fixed_pos', 'no_symbols', 'idk_answer'],
+        help='Specific modes to process (default: all modes)'
+    )
+
+    parser.add_argument('--limit', type=int, default=None,
+        help='Limit the number of questions to process (default: all)'
+    )
+    
+
     return parser.parse_args()
 
 
 def main(args):
     import json
     with open(args.dataset_path) as f:
-        dataset = json.load(f)[args.subset]
-    with open(args.dataset_path.replace(".json", "_open.json")) as f:
+        dataset = json.load(f)#[args.subset]
+    with open("data/benchmark_open.json") as f:
         dataset_open = json.load(f)[args.subset]
 
+    modes = args.modes if args.modes else ["mcq", "open"]
+    dataset_per_mode = {mode: dataset[mode] for mode in modes}
+        
     # dataset = dataset["medqa"]
     non_possible_ids = [idx for (idx, item) in dataset_open.items() if item['open_question'] == 'Not possible']
-    dataset_open = [(idx, item) for idx, item in dataset_open.items() if idx not in non_possible_ids]
-    dataset = [(idx, item) for idx, item in dataset.items() if idx not in non_possible_ids]
-    assert len(dataset_open) == len(dataset)
+    # dataset_open = [(idx, item) for idx, item in dataset_open.items() if idx not in non_possible_ids]
+    # dataset = [(idx, item) for idx, item in dataset.items() if idx not in non_possible_ids]
+    # assert len(dataset_open) == len(dataset)
 
     model = args.model_type
     if model not in model_example_map:
         raise ValueError(f"Model type {model} is not supported.")
 
-    modality = "image"
+    #modality = "image"
     #mm_input = get_multi_modal_input(args)
-    data = []
     questions = []
-    max_samples = 16
-    for item, item_open in zip(dataset, dataset_open):
+    for mode, dataset in dataset_per_mode.items():
+        print(f"Processing mode: {mode} with {len(dataset)} questions")
+        dataset = [(idx, item) for idx, item in dataset.items() if idx not in non_possible_ids]
+        
+        if args.limit:
+            dataset = dataset[:args.limit]
 
-        id_question = item[0]
-        TEMPLATE = """The following are multiple choice questions about medical knowledge. 
-Solve them in a step-by-step fashion, starting by summarizing the available information. 
-Output a single option from the four options as the final answer. 
-Question: "<QUESTION>"
+        for idx, item in dataset:
+            question = item['prompt']
+            questions.append((idx, question, mode, item))
 
-Response (think step by step and then end with "Final Answer:" followed by *only* the letter corresponding to the correct answer enclosed in parentheses)"""
+#     for item, item_open in zip(dataset, dataset_open):
 
-#         TEMPLATE = """You have a maximum of 2000 tokens for your thinking process. 
-# Be concise and focused in your reasoning. When you approach this limit, conclude your thinking and provide your answer.
-
+#         id_question = item[0]
+#         TEMPLATE = """The following are multiple choice questions about medical knowledge. 
+# Solve them in a step-by-step fashion, starting by summarizing the available information. 
+# Output a single option from the four options as the final answer. 
 # Question: "<QUESTION>"
 
-# Please show your choice in the answer field with only the choice letter, e.g., "Final Answer: (X)". Rember that your thinking must be concise."""        
+# Response (think step by step and then end with "Final Answer:" followed by *only* the letter corresponding to the correct answer enclosed in parentheses)"""
 
-        TEMPLATE_OPEN = """The following are open-ended questions about medical knowledge.
-Solve them in a step-by-step fashion, starting by summarizing the available information.
-Output a single, concise final answer (not a letter).
-Question: "<QUESTION>"
+# #         TEMPLATE = """You have a maximum of 2000 tokens for your thinking process. 
+# # Be concise and focused in your reasoning. When you approach this limit, conclude your thinking and provide your answer.
 
-Response (think step by step and then end with "Final Answer:" followed by *only* the concise answer)"""
-        
-#         TEMPLATE_OPEN = """You have a maximum of 2000 tokens for your thinking process. 
-# Be concise and focused in your reasoning. When you approach this limit, conclude your thinking and provide your answer.
+# # Question: "<QUESTION>"
 
+# # Please show your choice in the answer field with only the choice letter, e.g., "Final Answer: (X)". Rember that your thinking must be concise."""        
+
+#         TEMPLATE_OPEN = """The following are open-ended questions about medical knowledge.
+# Solve them in a step-by-step fashion, starting by summarizing the available information.
+# Output a single, concise final answer (not a letter).
 # Question: "<QUESTION>"
 
-# Please show your response in the answer field with only the concise final answer, e.g., "Final Answer: <your concise answer>". Rember that your thinking must be concise."""        
+# Response (think step by step and then end with "Final Answer:" followed by *only* the concise answer)"""
+        
+# #         TEMPLATE_OPEN = """You have a maximum of 2000 tokens for your thinking process. 
+# # Be concise and focused in your reasoning. When you approach this limit, conclude your thinking and provide your answer.
+
+# # Question: "<QUESTION>"
+
+# # Please show your response in the answer field with only the concise final answer, e.g., "Final Answer: <your concise answer>". Rember that your thinking must be concise."""        
 
         
-        #gold_answer = item['answer'] if args.mode != "no-symbols" else item['options'][item['answer']]
-        question_open = f"{item_open[1]['open_question'].strip()}\n\n"
-        question_open = TEMPLATE_OPEN.replace("<QUESTION>", question_open)
+#         #gold_answer = item['answer'] if args.mode != "no-symbols" else item['options'][item['answer']]
+#         question_open = f"{item_open[1]['open_question'].strip()}\n\n"
+#         question_open = TEMPLATE_OPEN.replace("<QUESTION>", question_open)
 
-        question = item[1]['question']
-        options = item[1]['options']
-        question = f"{question.strip()}\n(A) {options['A']}\n(B) {options['B']}\n(C) {options['C']}\n(D) {options['D'].strip()}\n\n"
+#         question = item[1]['question']
+#         options = item[1]['options']
+#         question = f"{question.strip()}\n(A) {options['A']}\n(B) {options['B']}\n(C) {options['C']}\n(D) {options['D'].strip()}\n\n"
         
-        question = TEMPLATE.replace("<QUESTION>", question.strip()) 
-        questions.append((id_question, question))
+#         question = TEMPLATE.replace("<QUESTION>", question.strip()) 
+#         questions.append((id_question, question))
 
-        questions.append((id_question, question_open))
+#         questions.append((id_question, question_open))
     
 
     if "medgemma" in args.model_type.lower():
-        req_data, tokenizer = model_example_map[model](questions, modality)
+        req_data, tokenizer = model_example_map[model](questions)
         # Disable other modalities to save memory
         default_limits = {"image": 1, "video": 0, "audio": 0}
         req_data.engine_args.limit_mm_per_prompt = default_limits 
@@ -557,6 +705,8 @@ Response (think step by step and then end with "Final Answer:" followed by *only
     # Don't want to check the flag multiple times, so just hijack `prompts`.
     prompts = req_data.prompts
     id_prompts = req_data.id_prompts
+    mode_prompts = req_data.mode_prompts
+    data_info = req_data.data_info
 
     # We set temperature to 0.2 so that outputs can be different
     # even when all prompts are identical when running batch inference.
@@ -581,11 +731,13 @@ Response (think step by step and then end with "Final Answer:" followed by *only
 
             {
                 "meta_data": {
-                    "id_prompt": id_prompts[i]
+                    "id_prompt": id_prompts[i],
+                    "mode_prompt": mode_prompts[i],
+                    "answer": data_info[i]['answer']
                 },
                 "request": {   
                     "prompt": prompts[i],
-                    "multi_modal_data": {modality: data},
+                    "multi_modal_data": {"image": []},
                 }
             }
             for i in range(len(prompts))
@@ -595,7 +747,9 @@ Response (think step by step and then end with "Final Answer:" followed by *only
 
             {
                 "meta_data": {
-                    "id_prompt": id_prompts[i]
+                    "id_prompt": id_prompts[i],
+                    "mode_prompt": mode_prompts[i],
+                    "answer": data_info[i]['answer']
                 },
                 "request": prompts[i]
             }
@@ -610,19 +764,27 @@ Response (think step by step and then end with "Final Answer:" followed by *only
 
     print("Sample prompts:")
     os.makedirs(f"out/prompts/{args.model_type}", exist_ok=True)
-    with open(f"out/prompts/{args.model_type}/prompt_{args.subset}.txt", "w") as f:
-        for prompt in inputs[:3]:
+    
+    for prompt in inputs[:10]:
+        mode_prompt = prompt['meta_data']['mode_prompt']
+        with open(f"out/prompts/{args.model_type}/prompt_{args.subset}_{mode_prompt}.txt", "w") as f:
             f.write("-" * 50)
+            f.write("\n")
+            f.write(f'MODE_PROMPT: {prompt["meta_data"]["mode_prompt"]}\n')
             f.write(f'ID_PROMPT: {prompt["meta_data"]["id_prompt"]}')
             if "prompt" in prompt["request"]:
                 f.write(prompt["request"]["prompt"])
             else: 
                 f.write(prompt["request"])
             f.write("-" * 50)
+            f.write("\n\n")
 
     for batch in tqdm(batched_inputs):
         ids = [el['meta_data']['id_prompt'] for el in batch]
+        modes = [el['meta_data']['mode_prompt'] for el in batch]
         input_batch = [el["request"] for el in batch]
+        gold_answers = [el['meta_data']['answer'] for el in batch]
+
         with time_counter(args.time_generate):
             outputs = llm.generate(
                 input_batch,
@@ -648,12 +810,12 @@ Response (think step by step and then end with "Final Answer:" followed by *only
                 final_answer = generated_text.split("Final Answer:")[1].strip() if "Final Answer:" in generated_text else ""
             
             
-            extracted_final_answer = extract_mcq_answer("Final Answer: " + final_answer) if id_out % 2 == 0 else final_answer.replace("*","").strip()
+            extracted_final_answer = extract_final_answer("Final Answer: " + final_answer.replace("*","").strip(), mode=modes[id_out])
             
-            result = {"id_question": ids[id_out], "final_answer": extracted_final_answer, "completion": generated_text, "thinking_length": len(tokenizer.encode(thinking))}
+            result = {"id_question": ids[id_out], "mode": modes[id_out], "gold_answer": gold_answers[id_out], "final_answer": extracted_final_answer, "correct": gold_answers[id_out] == extracted_final_answer, "completion": generated_text, "thinking_length": len(tokenizer.encode(thinking))}
             # # save results
             os.makedirs(f'out/completions/{args.model_type}/{args.subset}', exist_ok=True)
-            with open(f"out/completions/{args.model_type}/{args.subset}/generations.jsonl", "a") as f:
+            with open(f"out/completions/{args.model_type}/{args.subset}/generations_{modes[id_out]}.jsonl", "a") as f:
                 json.dump(result, f)
                 f.write("\n")
 
