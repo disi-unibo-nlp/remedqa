@@ -1,11 +1,28 @@
 import json
 
+possible_ids_medqa = json.load(open("data/processed/benchmark_open_filtered.json"))['medqa'].keys()
+possible_ids_mmlu = json.load(open("data/processed/benchmark_open_filtered.json"))['mmlu'].keys()
+possible_ids_medmcqa = json.load(open("data/processed/benchmark_open_filtered.json"))['medmcqa'].keys() 
 
-subset = "mmlu"
-model_name = "medgemma"
-input_path = "out/completions/Qwen3-32B-AWQ/judge/mmlu/2025-09-16_07-12-01/judges_mmlu.jsonl" 
 
-with open('data/benchmark.json') as f:
+
+def filter_completions(completions, subset):
+    if subset == "medqa":
+        possible_ids = possible_ids_medqa
+    elif subset == "mmlu":  
+        possible_ids = possible_ids_mmlu
+    elif subset == "medmcqa":
+        possible_ids = possible_ids_medmcqa
+    else:
+        raise ValueError(f"Unknown subset: {subset}")   
+    filtered = [el for el in completions if el["question_id"] in possible_ids]
+    return filtered
+
+subset = "medqa"
+model_name = "together_api/openai/gpt-oss-120b"
+input_path = "out/completions/Qwen3-32B-AWQ/judge/gpt-oss-120b/medqa/2025-09-25_14-14-47/judges_medqa.jsonl" 
+
+with open('data/processed/benchmark_closed_filtered.json') as f:
     benchmark = json.load(f)[subset]
 
 with open(f'out/completions/{model_name}/{subset}/generations.jsonl') as f:
@@ -15,19 +32,24 @@ with open(f'out/completions/{model_name}/{subset}/generations.jsonl') as f:
 with open(input_path) as f: 
     data = [json.loads(line) for line in f.readlines()]
     data = [{**el, 'correct_mcq': el['mcq_response'] == el['gold_answer'], 'open_completion': id2generation[el['question_id']], "mcq_options": benchmark[el['question_id']]['options']} for el in data]
+
+# filter data to only include items with id in possible_ids
+data = filter_completions(data, subset)
+
 print(data[0])
 # ['question_id', 'gold_answer', 'mcq_response', 'open_response', 'consistent', 'completion', 'correct', 'justification', 'correct_mcq']
 
 import pandas as pd
 df = pd.DataFrame(data)
 df = df.drop(columns=['completion'])
-df.to_excel(f"{model_name}_{subset}_open_vs_mcq.xlsx", index=False)
+df.to_excel(f"{model_name.replace('gemini_api/', '').replace('together_api/','').replace('meta-llama/','').replace('openai/','')}_{subset}_open_vs_mcq.xlsx", index=False)
 
+print("Model:", model_name, "| Subset:", subset)
 accuracy_mcq = sum([el['correct_mcq'] for el in data if el['correct_mcq']]) / len(data) * 100
-print("Accuract MCQ:", round(accuracy_mcq, 1))
+print("Accuracy MCQ:", round(accuracy_mcq, 1))
 
 accuracy_open = sum([el['correct'] for el in data if el['correct']]) / len(data) * 100
-print("Accuract Open:", round(accuracy_open, 1))
+print("Accuracy Open:", round(accuracy_open, 1))
 
 consistent_responses = [el for el in data if el['consistent']]
 inconsistent_responses = [el for el in data if not el['consistent']]
@@ -84,7 +106,6 @@ if subset == "mmlu":
         total_inconsistent = len(inconsistent_responses_open_mcq) + len(inconsistent_responses_mcq_open) + len(inconsistent_responses_mcq_open_false) + len(inconsistent_responses_mcq_open_correct)
         print("\tTotal:", total_inconsistent, "| Check:", total_inconsistent == len(inconsistent_responses))
         print("---------")
-
 
 
 
