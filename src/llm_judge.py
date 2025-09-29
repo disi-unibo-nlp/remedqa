@@ -33,7 +33,7 @@ def parse_arguments():
     
     parser.add_argument("--judge_model_name", type=str, default="Qwen/Qwen3-32B-AWQ", help="Model's HF directory or local path")
     parser.add_argument("--completion_dir", type=str, default="out/completions/medgemma", help="Model's completion directory name")
-    parser.add_argument("--dataset_path", type=str, default="data/benchmark.json", help="Dataset HF directory")
+    parser.add_argument("--dataset_path", type=str, default="data/processed/benchmark_closed_filtered.json", help="Dataset HF directory")
     parser.add_argument("--out_dir", type=str, default="./out/completions", help="Outputs directory")
     parser.add_argument("--max_samples", type=int, default=-1, help="Maximum number of data to process in train set. Default is -1 to process all data.")
     parser.add_argument("--start_idx", type=int, default=0, help="Index of first prompt to process.")
@@ -207,7 +207,7 @@ if __name__ == "__main__":
         tensor_parallel_size=args.n_gpus
     )
 
-    with open(args.dataset_path.replace(".json", "_open.json")) as f:
+    with open(args.dataset_path.replace("closed", "open")) as f:
         dataset_open = json.load(f)[args.subset]
 
     dataset_open = [(idx, item) for (idx, item) in dataset_open.items()]
@@ -219,8 +219,12 @@ if __name__ == "__main__":
     with open(f'{args.completion_dir}/{args.subset}/generations.jsonl') as f:
         completions = [json.loads(line) for line in f.readlines()]
         completions = [el for el in completions if el['id_question'] not in non_possible_ids]
-        completion_mcq = completions[::2]
-        completions = completions[1::2]
+        if "mode" in completions[0]:
+            completion_mcq = [item for item in completions if item['mode'] == "mcq"]
+            completions = [item for item in completions if item['mode'] == "open"]
+        else:
+            completion_mcq = completions[::2]
+            completions = completions[1::2]
         completions_ids = [item["id_question"] for item in completions]
 
     with open(args.dataset_path) as f:
@@ -230,16 +234,23 @@ if __name__ == "__main__":
     id2answer_mcq = {}
     for compl in completion_mcq:
         compl_id = compl['id_question']
-        compl = compl['completion'].split("Final Answer:")[1].strip() if "Final Answer:" in compl['completion'] else "None"
-        extracted_answer = extract_mcq_answer("Final Answer: " + compl)
+        if "gemini" in args.completion_dir.lower() or "gpt-oss" in args.completion_dir.lower() or "gpt-5" in args.completion_dir.lower():
+            extracted_answer = compl['final_answer']
+        else:
+            compl = compl['completion'].split("Final Answer:")[1].strip() if "Final Answer:" in compl['completion'] else "None"
+            extracted_answer = extract_mcq_answer("Final Answer: " + compl)
         #print(extracted_answer)
         id2answer_mcq[compl_id] = extracted_answer
     
     id2answer_open = {}
     for compl in completions:
         compl_id = compl['id_question']
-        compl = compl['completion'].strip() if "Final Answer:" in compl['completion'] else "None"
-        extracted_answer = compl
+
+        if "gemini" in args.completion_dir.lower() or "gpt-oss" in args.completion_dir.lower() or "gpt-5" in args.completion_dir.lower():
+            extracted_answer = compl['thinking'].strip() + "\n\n" + compl['completion'] if compl['thinking'] else compl['completion']
+        else:
+            extracted_answer = compl['completion'].strip() if "Final Answer:" in compl['completion'] else "None"
+        
         id2answer_open[compl_id] = extracted_answer
 
     
@@ -247,8 +258,11 @@ if __name__ == "__main__":
     data_dict = dict(Counter(completions_ids))
     sorted_dict = dict(sorted(data_dict.items(), key=lambda x: x[1], reverse=True))
     print(sorted_dict)
+    print("LENGTH COMPLETION", len(completions) )
+    print("LENGTH COMPLETION MCQ", len(completion_mcq) )
+    print(set(id2answer_mcq.keys()).difference(set(id2answer_open.keys())))
     assert len(completion_mcq) == len(completions)
-    print("LENGTH COMPLETION",len(completions) )
+    
     
     print("LENGTH DATASET",len(dataset) )
     
