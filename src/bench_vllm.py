@@ -131,7 +131,7 @@ def extract_mcq_answer(response: str):
         return match.group(1).upper()
     return None
 
-def extract_mcq_answer_roman(response: str, convert_roman=False):
+def extract_mcq_answer_roman(response: str, convert_roman=True):
     """
     Extracts the MCQ letter from a response containing 'Final Answer: (X)'.
     
@@ -143,16 +143,17 @@ def extract_mcq_answer_roman(response: str, convert_roman=False):
     Returns the option letter as a string (e.g., 'A'), or None if not found.
     """
     if convert_roman:
-        roman_to_letter = { 'I': 'A', 'II': 'B', 'III': 'C', 'IV': 'D' }
+        #roman_to_letter = { 'I': 'A', 'II': 'B', 'III': 'C', 'IV': 'D' }
         match = re.search(r"(?:Final Answer:|Answer:)\s*\(?([IVX]+)\)?", response, re.IGNORECASE)
         if match:
             roman_numeral = match.group(1).upper()
-            return roman_to_letter.get(roman_numeral, None)
+            return roman_numeral
     else:
         match = re.search(r"(?:Final Answer:|Answer:)\s*\(?([A-D])\)?", response, re.IGNORECASE)
         if match:
             return match.group(1).upper()
     return None
+
    
 
 def extract_open_answer(response: str):
