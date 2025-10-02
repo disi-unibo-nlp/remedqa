@@ -6,48 +6,47 @@ import time
 from dotenv import load_dotenv
 import os
 load_dotenv()
+from src.utils.parser import parse_final_answer
 
-import re
-
-def parse_open_answer(response: str):
-    """
-    Extracts the open-ended answer from a response containing 'Final Answer: <answer>'.
+# def parse_open_answer(response: str):
+#     """
+#     Extracts the open-ended answer from a response containing 'Final Answer: <answer>'.
     
-    Handles cases like:
-    - 'Final Answer: The answer is 42.'
-    - 'Final Answer: 42'
-    - 'Answer: The capital of France is Paris.'
-    Returns the answer as a string, or None if not found.
-    """
-    match = re.search(r"(?:Final Answer:|Answer:)\s*(.+)", response, re.IGNORECASE)
-    if match:
-        return match.group(1).strip()
-    return None
+#     Handles cases like:
+#     - 'Final Answer: The answer is 42.'
+#     - 'Final Answer: 42'
+#     - 'Answer: The capital of France is Paris.'
+#     Returns the answer as a string, or None if not found.
+#     """
+#     match = re.search(r"(?:Final Answer:|Answer:)\s*(.+)", response, re.IGNORECASE)
+#     if match:
+#         return match.group(1).strip()
+#     return None
 
-def parse_mcq_answer(text: str) -> str:
-    """
-    Extracts the answer letter from strings like:
-    'The final answer is \\boxed{C}' or 'Final Answer: (C)'
-    Returns 'C'
-    """
-    # Try LaTeX boxed format: \boxed{C}
-    match = re.search(r'\\boxed\{([A-D])\}', text)
-    if match:
-        return match.group(1)
+# def parse_mcq_answer(text: str) -> str:
+#     """
+#     Extracts the answer letter from strings like:
+#     'The final answer is \\boxed{C}' or 'Final Answer: (C)'
+#     Returns 'C'
+#     """
+#     # Try LaTeX boxed format: \boxed{C}
+#     match = re.search(r'\\boxed\{([A-D])\}', text)
+#     if match:
+#         return match.group(1)
     
-    # Try parentheses format: (C)
-    match = re.search(r'\(([A-D])\)', text)
-    if match:
-        return match.group(1)
+#     # Try parentheses format: (C)
+#     match = re.search(r'\(([A-D])\)', text)
+#     if match:
+#         return match.group(1)
     
-    return None  # Nothing matched
+#     return None  # Nothing matched
 
-def parse_final_answer(text: str, mode: str) -> str:
-    if mode == "mcq":
-        return parse_mcq_answer(text)
-    elif mode == "open":
-        return parse_open_answer(text)
-    return None
+# def parse_final_answer(text: str, mode: str) -> str:
+#     if mode == "mcq":
+#         return parse_mcq_answer(text)
+#     elif mode == "open":
+#         return parse_open_answer(text)
+#     return None
 
 
 def save_results_gemini(job_name, output_dir):
@@ -95,25 +94,29 @@ def save_results_gemini(job_name, output_dir):
             with open(f"{output_dir}/raw_completions.jsonl") as f:
                 completions = [json.loads(line) for line in f.readlines()]
             
-            with open(f"{output_dir}/generations.jsonl", "w") as f:
-                for item in completions:
-                    key = item['key']
-                    key_splits = key.split("-", 2)
-                    dataset_item = key_splits[0]
-                    mode_item = key_splits[1]
-                    id_item = key_splits[2]
-                    parts = item['response']['candidates'][0]['content']['parts'] if 'candidates' in item['response'] else []
-                    thinking = ""
-                    answer = ""
-                    final_answer = ""
-                    for part in parts:
-                        if 'thought' in part:
-                            thinking = part['text']
-                        else:
-                            answer = part['text']
-                            final_answer = parse_final_answer(answer, mode_item)
-                    
-                    json.dump({"id_question": id_item, "dataset": dataset_item, "mode": mode_item, "final_answer": final_answer, "completion": answer, "thinking": thinking}, f)
+            
+            for item in completions:
+                key = item['key']
+                key_splits = key.split("-", 2)
+                dataset_item = key_splits[0]
+                mode_item = key_splits[1]
+                if mode_item not in dataset_per_mode:
+                    continue
+                id_item = key_splits[2]
+                gold_answer = dataset_per_mode[mode_item][id_item]['answer'] if mode_item != "yes_no_maybe" else "Yes"
+                parts = item['response']['candidates'][0]['content']['parts'] if 'candidates' in item['response'] else []
+                thinking = ""
+                answer = ""
+                final_answer = ""
+                for part in parts:
+                    if 'thought' in part:
+                        thinking = part['text']
+                    else:
+                        answer = part['text']
+                        final_answer = parse_final_answer(answer, mode_item, model_name="gemini")
+                
+                with open(f"{output_dir}/generations_{mode_item}.jsonl", "a") as f:
+                    json.dump({"id_question": id_item, "dataset": dataset_item, "mode": mode_item, "gold_answer": gold_answer, "final_answer": final_answer, "completion": answer, "thinking": thinking}, f)
                     f.write("\n")
             
 
@@ -141,8 +144,6 @@ def save_results_gemini(job_name, output_dir):
 
 
 def save_results_openai(job_name, output_dir):
-
-    
 
     #print(client.batches.retrieve(args.batch_id))
     response = client.batches.retrieve(job_name)
@@ -176,26 +177,30 @@ def save_results_openai(job_name, output_dir):
             with open(f'{output_dir}/raw_completions.jsonl', 'r') as f:
                 completions = [json.loads(line) for line in f.readlines()]
             
-            with open(f'{output_dir}/generations.jsonl', 'w') as f:
-                for item in completions:
+            
+            for item in completions:
 
-                    key_splits = item['custom_id'].split("-", 2)
-                    dataset_item = key_splits[0]
-                    mode_item = key_splits[1]
-                    id_item = key_splits[2]
-                    usage_info = item['response']['body']['usage']['output_tokens_details']['reasoning_tokens']
-                    #result = json.loads(line)
-                    output = item['response']['body']['output']
-                    final_answer = ""
-                    thinking = ""
-                    for out in output:
-                        if out['type'] == "reasoning":
-                            thinking = out['summary'][0]['text'] if out['summary'] else ""
-                        elif out['type'] == "message":
-                            completion = out['content'][0]['text'] if out['content'] else ""
-                            final_answer = parse_final_answer(completion, mode_item)
+                key_splits = item['custom_id'].split("-", 2)
+                dataset_item = key_splits[0]
+                mode_item = key_splits[1]
+                if mode_item not in dataset_per_mode:
+                    continue
+                id_item = key_splits[2]
+                gold_answer = dataset_per_mode[mode_item][id_item]['answer'] if mode_item != "yes_no_maybe" else "Yes"
+                usage_info = item['response']['body']['usage']['output_tokens_details']['reasoning_tokens']
+                #result = json.loads(line)
+                output = item['response']['body']['output']
+                final_answer = ""
+                thinking = ""
+                for out in output:
+                    if out['type'] == "reasoning":
+                        thinking = out['summary'][0]['text'] if out['summary'] else ""
+                    elif out['type'] == "message":
+                        completion = out['content'][0]['text'] if out['content'] else ""
+                        final_answer = parse_final_answer(completion, mode_item, model_name="openai")
                 
-                    json.dump({"id_question": id_item, "dataset": dataset_item, "mode": mode_item, "final_answer": final_answer, "completion": completion, "thinking": thinking, "thinking_length": usage_info}, f)
+                with open(f'{output_dir}/generations_{mode_item}.jsonl', 'a') as f:
+                    json.dump({"id_question": id_item, "dataset": dataset_item, "mode": mode_item, "gold_answer": gold_answer, "final_answer": final_answer, "completion": completion, "thinking": thinking, "thinking_length": usage_info}, f)
                     f.write("\n")
             print("Done!")
 
@@ -204,13 +209,24 @@ def save_results_openai(job_name, output_dir):
         print(f"STATUS: {response.status}")
 
 if __name__ == "__main__":
-    
+
     
     # Use the name of the job you want to check
     # e.g., inline_batch_job.name from the previous step
-    job_name = "batch_68d9d135db74819096f0dd2286121b87" #"batches/jdsea2vgjodl3ftrdvxgpp3f478wwteg01ld" #"batches/taxgnuxeblk3sq3hkgxc6pmskwbaoqtx74kt"  # (e.g. 'batches/your-batch-id')
-    output_dir = "out/completions/openai_api/gpt-5-mini/mmlu/2025-09-29_00-22-11"
-
+    job_name = "batches/53qdg1f8qwybwva0id4yizii2w69oujg55vj" #"batches/jdsea2vgjodl3ftrdvxgpp3f478wwteg01ld" #"batches/taxgnuxeblk3sq3hkgxc6pmskwbaoqtx74kt"  # (e.g. 'batches/your-batch-id')
+    output_dir = "out/completions/gemini_api/gemini-2.5-flash/mmlu/2025-09-30_11-15-32"
+    
+    if "medqa" in output_dir:
+        subset = "medqa"
+    elif "medmcqa" in output_dir:
+        subset = "medmcqa"
+    elif "mmlu" in output_dir:
+        subset = "mmlu"
+    with open(f"data/processed/{subset}_all.json") as f:
+        dataset = json.load(f)#[args.subset]
+        
+    modes = list(dataset.keys())
+    dataset_per_mode = {mode: dataset[mode] for mode in modes} 
     # job_name = "batches/r9nzb8h32kwwg61417wevmw260ezpi1ylen2" #"batches/jdsea2vgjodl3ftrdvxgpp3f478wwteg01ld" #"batches/taxgnuxeblk3sq3hkgxc6pmskwbaoqtx74kt"  # (e.g. 'batches/your-batch-id')
     # output_dir = "out/completions/gemini_api/gemini-2.5-flash/medmcqa/2025-09-28_20-21-06"
 
@@ -222,6 +238,7 @@ if __name__ == "__main__":
         print("Processing results...")
         save_results_gemini(job_name, output_dir)
         print("Done!")
+
     elif "openai" in output_dir:
         OPENAI_KEY = os.getenv("OPENAI_KEY")
         client = OpenAI(api_key=OPENAI_KEY)
