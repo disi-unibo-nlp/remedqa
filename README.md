@@ -1,1 +1,1 @@
-# medical-mcqa
+# ReMedQA
