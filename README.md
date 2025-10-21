@@ -8,10 +8,6 @@ We also introduce two new metrics:
 - 🧠 **ReAcc** – measures correctness across all variations  
 - 🔁 **ReCon** – measures consistency regardless of correctness
 
-<p align="center">
-  <img src=".github/images/remedqa_abstract.png" alt="ReMedQA MCQA Consistency" width=60%>
-</p>
-
 Our findings show that high accuracy can mask low reliability. Large models often exploit structural cues, while smaller models are underestimated by standard MCQA. Despite near-saturated accuracy, we are **not** yet done with medical multiple-choice benchmarks.
 
 ---
@@ -196,6 +192,11 @@ process_data/process_dataset.py
 ---
 
 ## Results
+
+### Overall Perfomance
+<p align="center">
+  <img src=".github/images/remedqa_abstract.png" alt="ReMedQA MCQA Consistency" style="max-width: 300px; width: 100%; height: auto;">
+</p>
 
 ### Dataset-Specific Reliability
 <p align="center">
