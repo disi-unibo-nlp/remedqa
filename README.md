@@ -195,7 +195,7 @@ process_data/process_dataset.py
 
 ### Overall Perfomance
 <p align="center">
-  <img src=".github/images/remedqa_abstract.png" alt="ReMedQA MCQA Consistency" style="max-width: 300px; width: 100%; height: auto;">
+  <img src=".github/images/remedqa_abstract.png" alt="ReMedQA MCQA Consistency" style="width: 50%; height: auto;">
 </p>
 
 ### Dataset-Specific Reliability
