@@ -166,25 +166,24 @@ python3 -m src.bench_api_models \
 
 To reproduce the open-ended dataset creation process:
 
-```python
+```bash
+# 1. Convert each MCQA subset (MedQA, MedMCQA, MMLU) into open-ended format using GPT-4.1
+python3 process_data/convert_mcqa_open_api.py
 
-# 1. use GPT-4.1 to convert each subset (MedQA, MedMCQA, MMLU) into open-ended version
-process_data/convert_mcqa_open_api.py
-   
-# 2. parse OpenAI API completion
-process_data/parse_mcqa_open_api.py
+# 2. Parse the raw OpenAI API responses into structured JSON
+python3 process_data/parse_mcqa_open_api.py
 
-# 3. save separately for each subset parsed output
-process_data/save_bench_open.py
+# 3. Save the parsed outputs for each subset separately
+python3 process_data/save_bench_open.py
 
-# 4. combine all open-ended subset 
-process_data/combine_bench_open.py
+# 4. Merge all open-ended subsets into a single benchmark
+python3 process_data/combine_bench_open.py
 
-# 5. filter medmcqa to 1K samples across the previous open-ended converted question
-process_data/filter_medmcqa.py
+# 5. Subsample MedMCQA to 1K 
+python3 process_data/filter_medmcqa.py
 
-# 6. create the final versions of open-ended and closed mcqa dataset.
-process_data/process_dataset.py
+# 6. Generate the final versions of both open-ended and original MCQA datasets
+python3 process_data/process_dataset.py
 ```
 
 *Note: Check the input parameters within each script to adapt to your specific needs.*
