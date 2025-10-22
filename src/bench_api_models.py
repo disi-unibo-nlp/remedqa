@@ -6,6 +6,8 @@ from dotenv import load_dotenv
 import os
 from datetime import datetime
 from together import Together
+import argparse
+
 
 def get_thinking_budget(effort):
     thinking_budget = {
@@ -17,8 +19,10 @@ def get_thinking_budget(effort):
 
 def create_batch_gemini(modes, subset, output_dir, reasoning_effort="low", model_name_path="gemini-2.5-flash"):
     # Create a sample JSONL file
-
-    data_path = f"data/processed/{subset}_all_think.json"
+    if option_only_enabled:
+        data_path = f"data/processed/{subset}_options_only.json"
+    else:
+        data_path = f"data/processed/{subset}_all_think.json"
     benchmark = json.load(open(f"{data_path}"))
     
     thinking_budget = get_thinking_budget(reasoning_effort)
@@ -53,66 +57,12 @@ def create_batch_gemini(modes, subset, output_dir, reasoning_effort="low", model
         f.write(f"{file_batch_job.name}")
 
 
-# def create_batch_openai(modes, subset, output_dir, reasoning_effort="low", model_name_path="gpt-5-mini"):
-#     """Create a batch request object."""
-
-#     data_path = f"data/processed/{subset}_all_think.json"
-#     benchmark = json.load(open(f"{data_path}"))
-#     batch_input_file = f"{output_dir}/my-batch-requests.jsonl"
-
-#     with open(batch_input_file, "w") as f:
-#         for mode in modes:
-#             data = benchmark[mode]
-#             for count, (idx, item) in enumerate(data.items()):
-#                 if count < 20:
-                
-#                     request = {
-#                         "custom_id": f"{subset}-{mode}-{idx}",
-#                         "method": "POST",
-#                         "url": "/v1/chat/completions",
-#                         "body": {
-#                             "model": model_name_path,
-#                             "messages": [
-#                                 {"role": "user", "content": item['prompt']}
-#                             ]
-#                         }
-#                     }
-        
-#                     if "gpt-4" in model_name_path:
-#                         request["body"]["temperature"] = 0
-#                     elif "gpt-5" in model_name_path:
-#                         request["body"]["reasoning_effort"] = reasoning_effort
-                    
-#                     f.write(json.dumps(request) + "\n")
-    
-#     # Upload batch file
-#     batch_input_file = client.files.create(
-#         file=open(batch_input_file, "rb"),
-#         purpose="batch"
-#     )
-    
-#     # Create batch job
-#     batch_obj = client.batches.create(
-#         input_file_id=batch_input_file.id,
-#         endpoint="/v1/chat/completions",
-#         completion_window="24h",
-#         metadata={
-#             "description": f"Running batch inference for {subset} evaluation."
-#         }
-#     )
-    
-#     print(f"Batch created: {batch_obj}")
-#     print(f"BATCH ID: {batch_obj.id}")
-    
-#     # Save batch ID
-#     with open(f"{output_dir}/job_id.txt", 'w') as f:
-#         f.write(batch_obj.id)
-
-
 def create_batch_openai(modes, subset, output_dir, reasoning_effort="low", model_name_path="gpt-5-mini"):
     """Create a batch request object."""
-
-    data_path = f"data/processed/{subset}_all_think.json"
+    if option_only_enabled:
+            data_path = f"data/processed/{subset}_options_only.json"
+    else:
+        data_path = f"data/processed/{subset}_all_think.json"
     benchmark = json.load(open(f"{data_path}"))
     batch_input_file = f"{output_dir}/my-batch-requests.jsonl"
 
@@ -170,7 +120,10 @@ def create_batch_together(modes, subset, output_dir, reasoning_effort="medium", 
     # Create a sample JSONL file
 
     if "gpt-oss" in model_name_path.lower():
-        data_path = f"data/processed/{subset}_all_think.json"
+        if option_only_enabled:
+            data_path = f"data/processed/{subset}_options_only.json"
+        else:
+            data_path = f"data/processed/{subset}_all_think.json"
     else:
         data_path = f"data/processed/{subset}_all.json"
     benchmark = json.load(open(f"{data_path}"))
@@ -207,60 +160,132 @@ def create_batch_together(modes, subset, output_dir, reasoning_effort="medium", 
     print(batch_stat.status)
 
 
-
-now = datetime.now()
-# Format the date and time as a string
-now_dir = now.strftime("%Y-%m-%d_%H-%M-%S")
-
-subset = "mmlu"
-modes =  ["idk_answer"]#["mcq", "open"] #["incorrect", "none_of_the_provided", "options_only", "yes_no_maybe", "roman_numeral", "fixed_pos", "no_symbols"] ##, "open"] 
-model_name = "meta-llama/Llama-3.3-70B-Instruct-Turbo"# "gpt-5-mini" # "gemini-2.5-flash" #"openai/gpt-oss-120b"   #  #
-
-if "gemini" in model_name:
-    api_dir = "gemini" 
-elif "gpt-5" in model_name:
-    api_dir = "openai"
-else:
-    api_dir = "together"
-output_dir = f"out/completions/{api_dir}_api/{model_name}/{subset}/{now_dir}"
-os.makedirs(output_dir, exist_ok=True)
-load_dotenv()
+if __name__ == "__main__":
 
 
-if "gemini" in model_name:
-    GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-    if not GEMINI_API_KEY:
-        raise ValueError("GEMINI_API_KEY not found in environment variables")
-    client = genai.Client(api_key=GEMINI_API_KEY)
-    create_batch_gemini(
-        modes=modes,
-        subset=subset,
-        output_dir=output_dir,
-        reasoning_effort="low",
-        model_name_path=model_name
-    )
-elif "gpt-5-mini" in model_name:
-    OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-    if not OPENAI_API_KEY:
-        raise ValueError("OPENAI_API_KEY not found in environment variables")
-    client = OpenAI(api_key=OPENAI_API_KEY)
-    create_batch_openai(
-        modes=modes,
-        subset=subset,
-        output_dir=output_dir,
-        reasoning_effort="low",
-        model_name_path=model_name
+    parser = argparse.ArgumentParser(description="Run evaluation with configurable model and modes.")
+    
+    parser.add_argument(
+        "--subset",
+        type=str,
+        default="mmlu",
+        choices=["mmlu", "medmcqa", "medqa"],
+        help="Dataset subset to use (mmlu, medqa, or medmcqa)."
     )
 
-else:
-    TOGETHER_API_KEY=os.getenv("TOGETHER_API_KEY")
-    if not TOGETHER_API_KEY:
-        raise ValueError("TOGETHER_API_KEY not found in environment variables")
-    client = Together(api_key=TOGETHER_API_KEY) 
-    create_batch_together(
-        modes=modes,
-        subset=subset,
-        output_dir=output_dir,
-        reasoning_effort="medium",
-        model_name_path=model_name
+    parser.add_argument(
+        "--option-only-mode",
+        action="store_true",
+        help="If set, restricts evaluation to option-only modes (overrides --modes)."
     )
+
+    parser.add_argument(
+        "--modes",
+        type=str,
+        nargs="+",
+        choices=[
+            "open", 
+            "mcq", 
+            "incorrect", 
+            "none_of_the_provided", 
+            "roman_numeral", 
+            "fixed_pos", 
+            "no_symbols",
+            "options_only_mcq", 
+            "options_only_incorrect", 
+            "options_only_roman_numeral", 
+            "options_only_none_of_the_provided", 
+            "options_only_fixed_pos", 
+            "options_only_no_symbols"
+        ],
+        default=None,
+        help=(
+            "List of modes to evaluate. "
+            "If not provided, defaults are determined by --option_only_enabled. "
+            "Examples: --modes open mcq incorrect"
+        ),
+    )
+
+    parser.add_argument(
+        "--model-name",
+        type=str,
+        default="openai/gpt-oss-120b",
+        help="Name or path of the model to evaluate."
+    )
+
+    parser.add_argument(
+        "--output-dir",
+        type=str,
+        default="out/completions",
+        help="Output directory to save results."
+    )
+
+    args = parser.parse_args()
+
+
+    now = datetime.now()
+    # Format the date and time as a string
+    now_dir = now.strftime("%Y-%m-%d_%H-%M-%S")
+    option_only_enabled = args.option_only_mode
+    subset = args.subset
+    model_name = args.model_name
+
+    # Determine modes
+    if args.modes is not None:
+        modes = args.modes
+    elif option_only_enabled:
+        modes = ['options_only_mcq', 'options_only_incorrect', 'options_only_roman_numeral', 
+                    'options_only_none_of_the_provided', 'options_only_fixed_pos', 'options_only_no_symbols']
+            
+    else:
+        modes = ["open", "mcq", "incorrect", "none_of_the_provided", "roman_numeral", "fixed_pos", "no_symbols"] ##, "open"] 
+
+    if "gemini" in model_name:
+        api_dir = "gemini" 
+    elif "gpt-5" in model_name:
+        api_dir = "openai"
+    else:
+        api_dir = "together"
+
+    output_dir = f"{args.output_dir}/{api_dir}_api/{model_name}/{subset}/{now_dir}"
+    os.makedirs(output_dir, exist_ok=True)
+    load_dotenv()
+
+
+    if "gemini" in model_name:
+        GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+        if not GEMINI_API_KEY:
+            raise ValueError("GEMINI_API_KEY not found in environment variables")
+        client = genai.Client(api_key=GEMINI_API_KEY)
+        create_batch_gemini(
+            modes=modes,
+            subset=subset,
+            output_dir=output_dir,
+            reasoning_effort="low",
+            model_name_path=model_name
+        )
+    elif "gpt-5-mini" in model_name:
+        OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+        if not OPENAI_API_KEY:
+            raise ValueError("OPENAI_API_KEY not found in environment variables")
+        client = OpenAI(api_key=OPENAI_API_KEY)
+        create_batch_openai(
+            modes=modes,
+            subset=subset,
+            output_dir=output_dir,
+            reasoning_effort="low",
+            model_name_path=model_name
+        )
+
+    else:
+        TOGETHER_API_KEY=os.getenv("TOGETHER_API_KEY")
+        if not TOGETHER_API_KEY:
+            raise ValueError("TOGETHER_API_KEY not found in environment variables")
+        client = Together(api_key=TOGETHER_API_KEY) 
+        create_batch_together(
+            modes=modes,
+            subset=subset,
+            output_dir=output_dir,
+            reasoning_effort="medium",
+            model_name_path=model_name
+        )
