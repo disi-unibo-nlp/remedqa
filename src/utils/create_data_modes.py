@@ -4,144 +4,12 @@ import copy
 import argparse
 import os
 
-# Template definitions
-# TEMPLATES = {
-#     "mcq" : """You are given a multiple choice question about medical knowledge. Answer by returning the correct option’s letter.
-# Question: "<QUESTION>"
 
-# Enclose your final answer within \\boxed{}.""",        
-
-#     "open": """You are given an open-ended question about medical knowledge. Answer by returning a concise answer. 
-# Question: "<QUESTION>"
-
-# After you have finished your thinking process, please show your response with **only** the concise final answer, e.g., "Final Answer: <your concise answer>".
-# """,        
-
-#     "incorrect" : """You are given a multiple choice question about medical knowledge. Answer by returning the three incorrect option letters, separated by commas.
-# Question: "<QUESTION>"
-
-# Enclose your final answer within \\boxed{}.""",        
-
-#     "options_only" : """You will be shown only the answer options for multiple-choice questions from the <DATASET> test set. The original question text is intentionally hidden. 
-# You were trained on this dataset, so you should recall the correct answer from memory. Otherwise, you should guess. Answer by returning the correct option’s letter.
-# Original question: <the text of the question is hidden>
-# Options: 
-# <OPTIONS>
-
-# Enclose your final answer within \\boxed{}.""",        
-
-#     "roman_numeral" : """You are given a multiple choice question about medical knowledge. Answer by returning the correct option’s roman numeral.
-# Question: "<QUESTION>"
-
-# Enclose your final answer within \\boxed{}.""",     
-
-#     "yes_no_maybe" : """Your task is to establish wether the candidate answer is correct. You can respond with only these three options: "Yes", "No", "I don't know" (e.g., you are not sure if the candidate answer is correct, or that there is not enough information to establish if it is correct).
-# Question: "<QUESTION>"
-# Answer: "<CANDIDATE_ANSWER>"
-
-# After you have finished your thinking process, please show your response with *only* the words "Yes", "No", or "I don't know", e.g., "Final Answer: Yes".
-# """,
-
-#     "none_of_the_provided" : """You are given a multiple choice question about medical knowledge. Answer by returning the correct option’s letter.
-# Question: "<QUESTION>"
-
-# Enclose your final answer within \\boxed{}.""",            
-
-#     "fixed_pos" : """You are given a multiple choice question about medical knowledge. Answer by returning the correct option’s letter.
-# Question: "<QUESTION>"
-
-# Enclose your final answer within \\boxed{}.""",        
-
-#     "no_symbols" : """You are given a multiple choice question about medical knowledge. Answer by returning the correct answer.
-# Question: "<QUESTION>"
-
-# After you have finished your thinking process, please show your response with *only* the text of the correct answer, without any letter or symbol, e.g., "Final Answer: <text of the correct answer>".
-# """ 
-# }
-
-
-# Template definitions
-TEMPLATES = {
-    "mcq" : """The following are multiple choice questions about medical knowledge. 
-Solve them in a step-by-step fashion, starting by summarizing the available information. 
-Output a single option from the four options as the final answer. 
-Question: "<QUESTION>"
-
-Response (think step by step and then end with "Final Answer:" followed by *only* the letter corresponding to the correct answer enclosed in parentheses)""",
-
-    "open": """The following are open-ended questions about medical knowledge.
-Solve them in a step-by-step fashion, starting by summarizing the available information.
-Output a single, concise final answer (not a letter).
-Question: "<QUESTION>"
-
-Response (think step by step and then end with "Final Answer:" followed by *only* the concise answer)""",
-
-    "incorrect" : """The following are multiple choice questions about medical knowledge. 
-Solve them in a step-by-step fashion, starting by summarizing the available information. 
-Answer the given question by identifying the three incorrect options. 
-Question: "<QUESTION>"
-
-Response (think step by step and then end with "Final Answer:" followed by *only* the list of letters corresponding to the incorrect answers, e.g., "Final Answer: [A, C, D]")""",
-
-    "options_only" : """You will be shown only the answer options for multiple-choice questions from the <DATASET> test set. The original question text is intentionally hidden. 
-You were trained on this dataset, so you should recall the correct answer from memory. Otherwise, you should guess.
-Original question: <the text of the question is hidden>
-Options: 
-<OPTIONS>
-
-Response (think step by step and then end with "Final Answer:" followed by *only* the letter corresponding to the correct answer enclosed in parentheses)""",
-
-    "roman_numeral" : """The following are multiple choice questions about medical knowledge. 
-Solve them in a step-by-step fashion, starting by summarizing the available information. 
-Output a single option from the four options as the final answer. 
-Question: "<QUESTION>"
-
-Response (think step by step and then end with "Final Answer:" followed by *only* the roman numeral corresponding to the correct answer enclosed in parentheses)""",
-
-    "yes_no_maybe" : """The follwong is a medical question with a candidate answer.
-Your task is to establish wether the candidate answer is correct. You can respond with only these three options: "Yes", "No", "I don't know" (e.g., you are not sure if the candidate answer is correct, or that there is not enough information to establish if it is correct).
-Solve them in a step-by-step fashion, starting by summarizing the available information.
-Question: "<QUESTION>"
-Answer: "<CANDIDATE_ANSWER>"
-
-Response (think step by step and then end with "Final Answer:" followed by *only* the words "Yes", "No", or "I don't know")""",
-
-    "none_of_the_provided" : """The following are multiple choice questions about medical knowledge. 
-Solve them in a step-by-step fashion, starting by summarizing the available information. 
-Output a single option from the four options as the final answer. Select the option "None of the provided options" if you think that none of the other options is correct.
-Question: "<QUESTION>"
-
-Response (think step by step and then end with "Final Answer:" followed by *only* the letter corresponding to the correct answer enclosed in parentheses)""",
-
-    "fixed_pos" : """The following are multiple choice questions about medical knowledge. 
-Solve them in a step-by-step fashion, starting by summarizing the available information. 
-Output a single option from the four options as the final answer.
-Question: "<QUESTION>"
-
-Response (think step by step and then end with "Final Answer:" followed by *only* the letter corresponding to the correct answer enclosed in parentheses)""",
-
-    "no_symbols" : """The following are multiple choice questions about medical knowledge. 
-Solve them in a step-by-step fashion, starting by summarizing the available information. 
-Output a single option from the four options as the final answer.
-Question: "<QUESTION>"
-
-Response (think step by step and then end with "Final Answer:" followed by *only* the text of the correct option, without any letter or symbol)""",
-   
-    "idk_answer": """The following are multiple choice questions from a medical knowledge test. 
-Solve them in a step-by-step fashion, starting by summarizing the available information. 
-Your final answer must be a single option from the four options (A, B, C, D) provided.
-If you are confident in your answer, select one of the four options. If you are not confident, select option (E) "I don't know".
-Your objective is to maximize the final exam score, where:
-- Correct answers receive 1 point.
-- Incorrect answers receive -1 point.
-- The answer (E) "I don't know" receives 0 points.
-
-Question: "<QUESTION>"
-
-Response (think step by step and then end with "Final Answer:" followed by *only* the letter corresponding to your answer enclosed in parentheses)""",
-
-}
-
+def get_templates(input_template_file_path):
+    """Load templates from JSON file."""
+    with open(input_template_file_path, "r") as f:
+        return json.load(f)
+    
 def format_mcq_question(question_text, options):
     """Format a multiple choice question with options."""
     if "E" in options:
@@ -152,14 +20,14 @@ def format_no_symbols_question(question_text, options):
     """Format a question without letter symbols."""
     return f"{question_text.strip()}\n- {options['A']}\n- {options['B']}\n- {options['C']}\n- {options['D'].strip()}"
 
-def process_mcq_mode(item):
+def process_mcq_mode(item, templates=None):
     """Process MCQ mode."""
     new_item = copy.deepcopy(item)
     question = format_mcq_question(item['question'], item['options'])
-    prompt = TEMPLATES['mcq'].replace('<QUESTION>', question)
+    prompt = templates['mcq'].replace('<QUESTION>', question)
     return new_item, prompt
 
-def process_open_mode(item, open_questions=None):
+def process_open_mode(item, templates=None, open_questions=None):
     """Process open-ended mode."""
     new_item = copy.deepcopy(item)
     #new_item['options'] = {}  # Remove options for open-ended questions
@@ -175,19 +43,20 @@ def process_open_mode(item, open_questions=None):
         question_text = item['open_question']
         new_item['answer'] = item['options'][item['answer']]  # Convert answer to text
     
-    prompt = TEMPLATES['open'].replace('<QUESTION>', question_text)
+    prompt = templates['open'].replace('<QUESTION>', question_text)
     return new_item, prompt
 
-def process_incorrect_mode(item):
+def process_incorrect_mode(item, templates=None, options_only_mode=False):
     """Process incorrect answers mode."""
     new_item = copy.deepcopy(item)
     question = format_mcq_question(item['question'], item['options'])
     # Set answer to list of incorrect options
     new_item['answer'] = [k for k in ['A', 'B', 'C', 'D'] if k != item['answer']]
-    prompt = TEMPLATES['incorrect'].replace('<QUESTION>', question)
+    template_key = 'options_only_incorrect' if options_only_mode else 'incorrect'
+    prompt = templates[template_key].replace('<QUESTION>', question)
     return new_item, prompt
 
-def process_options_only_mode(item, subset="medqa"):
+def process_options_only_mode(item, templates=None, subset="medqa",  no_symbols=False, mode=""):
     """Process options-only mode."""
     if subset == "mmlu":
         subset = "MMLU"  # Use generic MMLU template
@@ -196,11 +65,20 @@ def process_options_only_mode(item, subset="medqa"):
     elif subset == "medmcqa":
         subset = "MedMCQA"
     new_item = copy.deepcopy(item)
-    options_text = "\n".join([f"({k}) {v}" for k, v in item['options'].items()])
-    prompt = TEMPLATES['options_only'].replace("<OPTIONS>", options_text).replace("<DATASET>", subset)
+    if mode == "no_symbols":
+        options_text = "\n".join([f"- {v.strip()}" for k, v in item['options'].items()])
+    else:
+        options_text = "\n".join([f"({k}) {v.strip()}" for k, v in item['options'].items()])
+    
+    if not mode:
+        prompt = templates['options_only'].replace("<OPTIONS>", options_text).replace("<DATASET>", subset)
+    else:
+        prompt = templates[f'options_only_{mode}'].replace("<OPTIONS>", options_text).replace("<DATASET>", subset)
+
+
     return new_item, prompt
 
-def process_roman_numeral_mode(item):
+def process_roman_numeral_mode(item, templates=None, options_only_mode=False):
     """Process roman numeral mode."""
     new_item = copy.deepcopy(item)
     id2roman = {'A': 'I', 'B': 'II', 'C': 'III', 'D': 'IV'}
@@ -211,25 +89,27 @@ def process_roman_numeral_mode(item):
     
     # Format question with roman numerals
     question = f"{item['question'].strip()}\n(I) {new_item['options']['I']}\n(II) {new_item['options']['II']}\n(III) {new_item['options']['III']}\n(IV) {new_item['options']['IV'].strip()}"
-    prompt = TEMPLATES['roman_numeral'].replace('<QUESTION>', question)
+    template_key = 'options_only_roman_numeral' if options_only_mode else 'roman_numeral'
+    prompt = templates[template_key].replace('<QUESTION>', question)
     return new_item, prompt
 
-def process_idk_answer_mode(item):
+def process_idk_answer_mode(item, templates=None, options_only_mode=False):
     """Process 'I don't know' mode."""
     new_item = copy.deepcopy(item)
     new_item['options']['E'] = "I don't know"
     question = format_mcq_question(item['question'], new_item['options'])
-    prompt = TEMPLATES['idk_answer'].replace('<QUESTION>', question)
+    template_key = 'options_only_idk_answer' if options_only_mode else 'idk_answer'
+    prompt = templates[template_key].replace('<QUESTION>', question)
     return new_item, prompt
 
-def process_yes_no_maybe_mode(item):
+def process_yes_no_maybe_mode(item, templates=None):
     """Process yes/no/maybe mode."""
     new_item = copy.deepcopy(item)
     candidate_answer = item['options'][item['answer']]
-    prompt = TEMPLATES['yes_no_maybe'].replace('<QUESTION>', item['question'].strip()).replace('<CANDIDATE_ANSWER>', candidate_answer)
+    prompt = templates['yes_no_maybe'].replace('<QUESTION>', item['question'].strip()).replace('<CANDIDATE_ANSWER>', candidate_answer)
     return new_item, prompt
 
-def process_none_of_provided_mode(item):
+def process_none_of_provided_mode(item, templates=None, options_only_mode=False):
     """Process 'none of the provided' mode."""
     new_item = copy.deepcopy(item)
     gold_answer_key = item['answer']
@@ -237,10 +117,11 @@ def process_none_of_provided_mode(item):
     # Replace the correct answer with "None of the provided options"
     new_item['options'][gold_answer_key] = "None of the provided options"
     question = format_mcq_question(item['question'], new_item['options'])  # Use original options for question formatting
-    prompt = TEMPLATES['none_of_the_provided'].replace('<QUESTION>', question)
+    template_key = 'options_only_none_of_the_provided' if options_only_mode else 'none_of_the_provided'
+    prompt = templates[template_key].replace('<QUESTION>', question)
     return new_item, prompt
 
-def process_fixed_pos_mode(item):
+def process_fixed_pos_mode(item, templates=None, options_only_mode=False):
     """Process fixed position mode (correct answer always in position D)."""
     new_item = copy.deepcopy(item)
     
@@ -257,32 +138,43 @@ def process_fixed_pos_mode(item):
     
     new_item['answer'] = 'D'
     question = format_mcq_question(item['question'], new_item['options'])
-    prompt = TEMPLATES['fixed_pos'].replace('<QUESTION>', question)
+    template_key = 'options_only_fixed_pos' if options_only_mode else 'fixed_pos'
+    prompt = templates[template_key].replace('<QUESTION>', question)
     return new_item, prompt
 
-def process_no_symbols_mode(item):
+def process_no_symbols_mode(item, templates=None, options_only_mode=False):
     """Process no symbols mode."""
     new_item = copy.deepcopy(item)
     new_item['answer'] = item['options'][item['answer']]  # Answer becomes the text, not the letter
     question = format_no_symbols_question(item['question'], item['options'])
-    prompt = TEMPLATES['no_symbols'].replace('<QUESTION>', question)
+    template_key = 'options_only_no_symbols' if options_only_mode else 'no_symbols'
+    prompt = templates[template_key].replace('<QUESTION>', question)
     return new_item, prompt
 
 # Mode processing functions mapping
-def get_mode_processors(open_questions=None, subset="medqa"):
+def get_mode_processors(open_questions=None, subset="medqa", templates=None, options_only_mode=False):
     """Get mode processors with optional open questions data."""
-    return {
-        'mcq': lambda item: process_mcq_mode(item),
-        'open': lambda item: process_open_mode(item, open_questions),
-        'incorrect': lambda item: process_incorrect_mode(item),
-        'options_only': lambda item: process_options_only_mode(item, subset),
-        'roman_numeral': lambda item: process_roman_numeral_mode(item),
-        'yes_no_maybe': lambda item: process_yes_no_maybe_mode(item),
-        'none_of_the_provided': lambda item: process_none_of_provided_mode(item),
-        'fixed_pos': lambda item: process_fixed_pos_mode(item),
-        'no_symbols': lambda item: process_no_symbols_mode(item),
-        'idk_answer': lambda item: process_idk_answer_mode(item)
-    }
+    
+    if not options_only_mode:
+        return {
+            'mcq': lambda item: process_mcq_mode(item, templates),
+            'open': lambda item: process_open_mode(item, templates, open_questions),
+            'incorrect': lambda item: process_incorrect_mode(item, templates),
+            'options_only': lambda item: process_options_only_mode(item, templates, subset),
+            'roman_numeral': lambda item: process_roman_numeral_mode(item, templates),
+            'none_of_the_provided': lambda item: process_none_of_provided_mode(item, templates),
+            'fixed_pos': lambda item: process_fixed_pos_mode(item, templates),
+            'no_symbols': lambda item: process_no_symbols_mode(item, templates),
+        }
+    else:
+        return {
+            'options_only_mcq': lambda item: process_options_only_mode(item, templates, subset, mode="mcq"),
+            'options_only_incorrect': lambda item: process_options_only_mode(process_incorrect_mode(item, templates, options_only_mode=True)[0], subset, mode="incorrect"),
+            'options_only_roman_numeral': lambda item: process_options_only_mode(process_roman_numeral_mode(item, templates, options_only_mode=True)[0], subset, mode="roman_numeral"),
+            'options_only_none_of_the_provided': lambda item: process_options_only_mode(process_none_of_provided_mode(item, templates, options_only_mode=True)[0], subset, mode="none_of_the_provided"),
+            'options_only_fixed_pos': lambda item: process_options_only_mode(process_fixed_pos_mode(item, templates, options_only_mode=True)[0], subset, mode="fixed_pos"),
+            'options_only_no_symbols': lambda item: process_options_only_mode(process_no_symbols_mode(item, templates, options_only_mode=True)[0], subset, mode="no_symbols")
+        }
 
 def load_open_questions(open_file, subset="medqa"):
     """
@@ -316,7 +208,7 @@ def load_open_questions(open_file, subset="medqa"):
         print(f"Error loading open questions from {open_file}: {e}")
         return None
 
-def process_benchmark(input_file, output_file, subset="medqa", include_prompts=True, modes=None, open_file=None):
+def process_benchmark(input_file, output_file, subset="medqa", templates=None, include_prompts=True, modes=None, open_file=None, options_only_mode=False):
     """
     Process benchmark data with different modes.
     
@@ -340,7 +232,7 @@ def process_benchmark(input_file, output_file, subset="medqa", include_prompts=T
         print(f"Loaded {len(open_questions)} manually re-adapted open questions")
     
     # Get mode processors
-    mode_processors = get_mode_processors(open_questions, subset)
+    mode_processors = get_mode_processors(open_questions, subset, templates, options_only_mode=options_only_mode)
     
     # Determine which modes to process
     all_modes = list(mode_processors.keys())
@@ -360,7 +252,7 @@ def process_benchmark(input_file, output_file, subset="medqa", include_prompts=T
         new_benchmark[mode] = {}
         
         for question_id, item in benchmark.items():
-            try:
+            # try:
                 # Ensure item has an ID for open questions lookup
                 if 'id' not in item:
                     item['id'] = question_id
@@ -375,9 +267,9 @@ def process_benchmark(input_file, output_file, subset="medqa", include_prompts=T
                 
                 new_benchmark[mode][question_id] = new_item
             
-            except Exception as e:
-                print(f"Error processing question {question_id} in mode {mode}: {e}")
-                continue
+            # except Exception as e:
+            #     print(f"Error processing question {question_id} in mode {mode}: {e}")
+            #     continue
     
     # Save processed benchmark
     with open(output_file, 'w') as f:
@@ -412,6 +304,8 @@ Examples:
                       help='Path to input JSON file containing benchmark data')
     parser.add_argument('-o', '--output', required=True,
                       help='Path to output JSON file')
+    parser.add_argument('-t', '--template', required=True,
+                      help='Path to template input JSON file')
     
     # Optional arguments
     parser.add_argument('--no-prompts', action='store_true',
@@ -426,6 +320,9 @@ Examples:
                       help='Dataset subset to use (default: medqa)')
     parser.add_argument('--list-modes', action='store_true',
                       help='List available modes and exit')
+    parser.add_argument('--options-only-mode', action='store_true',
+                    help="Activate prompt strategy for 'options only' mode.")
+
     
     args = parser.parse_args()
     
@@ -463,18 +360,20 @@ Examples:
         print(f"Open questions file: {args.open_file}")
     print("-" * 50)
     
-    try:
-        process_benchmark(
-            input_file=args.input,
-            output_file=args.output,
-            subset=args.subset,
-            include_prompts=include_prompts,
-            modes=args.modes,
-            open_file=args.open_file
-        )
-    except Exception as e:
-        print(f"Error during processing: {e}")
-        return
+    # try:
+    process_benchmark(
+        input_file=args.input,
+        output_file=args.output,
+        subset=args.subset,
+        include_prompts=include_prompts,
+        modes=args.modes,
+        open_file=args.open_file, 
+        templates=get_templates(args.template),
+        options_only_mode=args.options_only_mode
+    )
+    # except Exception as e:
+    #     print(f"Error during processing: {e}")
+    #     return
     
     print("-" * 50)
     print("Done!")
