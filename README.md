@@ -92,6 +92,20 @@ For details on how to generate these input prompts for each mode, please refer t
 
 ## Quick Start
 
+### Environment Setup
+
+Before running any scripts, create a `.env` file in the root directory to store your API credentials.
+
+```bash
+# .env
+GEMINI_API_KEY=<your_gemini_api_key>
+HUGGINGFACE_TOKEN=<your_huggingface_token>
+TOGETHER_API_KEY=<your_together_api_key>
+OPENAI_API_KEY=<your_openai_api_key>
+```
+
+These keys are required for accessing different model APIs.
+
 ### Evaluating Open-Source Models (via vLLM)
 ```bash
 MODEL_TYPE="mediphi"
