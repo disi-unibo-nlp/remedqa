@@ -246,11 +246,12 @@ def parse_yes_no_idk(text: str) -> str | None:
 def parse_final_answer_think(response: str, mode: str):
     if not response:
         return ""
-    if mode in ['mcq', 'options_only', 'none_of_the_provided', 'fixed_pos']:
+    if mode in ['mcq', 'options_only', 'none_of_the_provided', 'fixed_pos', 
+                'options_only_mcq', 'options_only_none_of_the_provided', 'options_only_fixed_pos']:
         return parse_mcq_answer_think(response)
-    elif mode == "roman_numeral":
+    elif mode in ["roman_numeral", 'options_only_roman_numeral']:
         return parse_mcq_answer_roman_think(response)
-    elif mode == "incorrect":
+    elif mode in ["incorrect", 'options_only_incorrect']:
         return parse_incorrect_answer_think(response)
     elif mode == "yes_no_maybe":
         return parse_yes_no_idk(response)
