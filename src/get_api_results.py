@@ -1,52 +1,14 @@
 import json
+import argparse
 from google import genai
 from google.genai import types
 from openai import OpenAI
+from together import Together
 import time
 from dotenv import load_dotenv
 import os
 load_dotenv()
 from src.utils.parser import parse_final_answer
-
-# def parse_open_answer(response: str):
-#     """
-#     Extracts the open-ended answer from a response containing 'Final Answer: <answer>'.
-    
-#     Handles cases like:
-#     - 'Final Answer: The answer is 42.'
-#     - 'Final Answer: 42'
-#     - 'Answer: The capital of France is Paris.'
-#     Returns the answer as a string, or None if not found.
-#     """
-#     match = re.search(r"(?:Final Answer:|Answer:)\s*(.+)", response, re.IGNORECASE)
-#     if match:
-#         return match.group(1).strip()
-#     return None
-
-# def parse_mcq_answer(text: str) -> str:
-#     """
-#     Extracts the answer letter from strings like:
-#     'The final answer is \\boxed{C}' or 'Final Answer: (C)'
-#     Returns 'C'
-#     """
-#     # Try LaTeX boxed format: \boxed{C}
-#     match = re.search(r'\\boxed\{([A-D])\}', text)
-#     if match:
-#         return match.group(1)
-    
-#     # Try parentheses format: (C)
-#     match = re.search(r'\(([A-D])\)', text)
-#     if match:
-#         return match.group(1)
-    
-#     return None  # Nothing matched
-
-# def parse_final_answer(text: str, mode: str) -> str:
-#     if mode == "mcq":
-#         return parse_mcq_answer(text)
-#     elif mode == "open":
-#         return parse_open_answer(text)
-#     return None
 
 
 def save_results_gemini(job_name, output_dir):
@@ -104,7 +66,7 @@ def save_results_gemini(job_name, output_dir):
                     continue
                 id_item = key_splits[2]
                 gold_answer = dataset_per_mode[mode_item][id_item]['answer'] if mode_item != "yes_no_maybe" else "Yes"
-                parts = item['response']['candidates'][0]['content']['parts'] if 'candidates' in item['response'] else []
+                parts = item['response']['candidates'][0]['content']['parts'] if 'candidates' in item['response'] and 'content' in item['response']['candidates'][0] else []
                 thinking = ""
                 answer = ""
                 final_answer = ""
@@ -198,7 +160,7 @@ def save_results_openai(job_name, output_dir):
                     elif out['type'] == "message":
                         completion = out['content'][0]['text'] if out['content'] else ""
                         final_answer = parse_final_answer(completion, mode_item, model_name="openai")
-                
+                print(f'{output_dir}/generations_{mode_item}.jsonl')
                 with open(f'{output_dir}/generations_{mode_item}.jsonl', 'a') as f:
                     json.dump({"id_question": id_item, "dataset": dataset_item, "mode": mode_item, "gold_answer": gold_answer, "final_answer": final_answer, "completion": completion, "thinking": thinking, "thinking_length": usage_info}, f)
                     f.write("\n")
@@ -208,40 +170,141 @@ def save_results_openai(job_name, output_dir):
         print("BATCH STILL PROCESSING...")
         print(f"STATUS: {response.status}")
 
+def save_results_together(job_name, output_dir):
+    batch_stat = client.batches.get_batch(job_name)
+
+    print(batch_stat.status)
+    # # Get the batch status to find output_file_id
+    batch = client.batches.get_batch(job_name)
+    output_file = output_dir + "/raw_completions.jsonl"
+
+    if batch.status == "COMPLETED":
+       
+        # Download the output file
+        client.files.retrieve_content(
+            id=batch_stat.output_file_id,
+            output=output_file,
+        )
+
+        with open(output_file) as f:
+            completions = [json.loads(line) for line in f.readlines()]
+        
+        for item in completions:
+            parts = item['custom_id'].split("-", 2)
+            dataset = parts[0]
+            mode_item = parts[1]
+
+            if mode_item not in modes:
+                continue
+
+            id = parts[2]
+            gold_answer = dataset_per_mode[mode_item][id]['answer'] if mode_item != "yes_no_maybe" else "Yes"
+            completion = item['response']['body']['choices'][0]['message']['content']
+            completion_length = item['response']['body']['usage']['completion_tokens']
+            final_answer = ""
+            reasoning = ""
+            if "gpt-oss" not in output_dir:
+                #modes = ["incorrect", "none_of_the_provided", "options_only", "yes_no_maybe", "roman_numeral", "fixed_pos", "no_symbols"]
+
+                final_answer_idx = completion.rfind("Final Answer:")
+                if final_answer_idx > 0:
+                    final_answer = completion[final_answer_idx:]
+                    #reasoning = completion[:final_answer_idx]
+                    final_answer = parse_final_answer(final_answer.replace("*",""), mode_item, model_name="llama3")
+
+            else:
+                
+                reasoning = item['response']['body']['choices'][0]['message']['reasoning']
+                if completion.strip():
+                    
+                    if mode_item != "open":
+                        final_answer = parse_final_answer(completion, mode=mode_item, model_name="gpt-oss-120b")
+                    else:
+                        final_answer_idx = completion.rfind("Final Answer:")
+                        if final_answer_idx >= 0:
+                            final_answer = completion[final_answer_idx+len("Final Answer:"):].strip()
+                else:
+                    if mode_item != "open":
+                        final_answer = parse_final_answer(completion, mode=mode_item, model_name="gpt-oss-120b")
+                    else:
+                        final_answer_idx = reasoning.rfind("Final Answer:")
+                        if final_answer_idx >= 0:
+                            final_answer = reasoning[final_answer_idx+len("Final Answer:"):].strip()
+                
+            with open(output_dir + f"/generations_{mode_item}.jsonl", "a") as f: 
+                out_dict = {"id_question": id, "mode": mode_item, "gold_answer": gold_answer, "final_answer": final_answer,  "correct": str(gold_answer).replace(".","") == str(final_answer).replace(".",""), "completion": completion, "thinking": reasoning, "thinking_length": completion_length }
+                json.dump(out_dict, f)
+                f.write("\n")
+
 if __name__ == "__main__":
+    
+    parser = argparse.ArgumentParser(
+        description='Retrieve and save API batch job results.',
+    )  
+
+    parser.add_argument('-o', '--output-dir', required=True,
+                      help='Path to output JSON file')
+    parser.add_argument('--job-name', type=str,
+                      help='batch job id to retrieve results from')
+    parser.add_argument('--options-only-mode', action='store_true',
+                    help="Activate prompt strategy for 'options only' mode.")
+    parser.add_argument('--dataset-dir', type=str, default="data/bench",
+                      help='Path to dataset directory')
+
+    
+    args = parser.parse_args()
 
     
     # Use the name of the job you want to check
     # e.g., inline_batch_job.name from the previous step
-    job_name = "batches/53qdg1f8qwybwva0id4yizii2w69oujg55vj" #"batches/jdsea2vgjodl3ftrdvxgpp3f478wwteg01ld" #"batches/taxgnuxeblk3sq3hkgxc6pmskwbaoqtx74kt"  # (e.g. 'batches/your-batch-id')
-    output_dir = "out/completions/gemini_api/gemini-2.5-flash/mmlu/2025-09-30_11-15-32"
-    
+    job_name = args.job_name #batches/tdw033ksy8zwa7e8spuj30075my7031b041i" #"batches/jdsea2vgjodl3ftrdvxgpp3f478wwteg01ld" #"batches/taxgnuxeblk3sq3hkgxc6pmskwbaoqtx74kt"  # (e.g. 'batches/your-batch-id')
+    output_dir = args.output_dir #"out/legal/completions/gemini_api/gemini-2.5-flash/professional_law/2025-10-18_00-19-13"
+    options_only_mode = args.options_only_mode
+    dataset_dir = args.dataset_dir #"data/bench"
+
     if "medqa" in output_dir:
         subset = "medqa"
     elif "medmcqa" in output_dir:
         subset = "medmcqa"
     elif "mmlu" in output_dir:
         subset = "mmlu"
-    with open(f"data/processed/{subset}_all.json") as f:
-        dataset = json.load(f)#[args.subset]
-        
+    else:
+        raise ValueError("Subset not found in output directory path.")
+
+    if not options_only_mode:
+        with open(f"{dataset_dir}/{subset}_all_think.json") as f:
+            dataset = json.load(f)#[args.subset]
+    else:
+        with open(f"{dataset_dir}/{subset}_options_only.json") as f:
+            dataset = json.load(f)#[args.subset]
+
+    print(dataset.keys())
     modes = list(dataset.keys())
     dataset_per_mode = {mode: dataset[mode] for mode in modes} 
-    # job_name = "batches/r9nzb8h32kwwg61417wevmw260ezpi1ylen2" #"batches/jdsea2vgjodl3ftrdvxgpp3f478wwteg01ld" #"batches/taxgnuxeblk3sq3hkgxc6pmskwbaoqtx74kt"  # (e.g. 'batches/your-batch-id')
-    # output_dir = "out/completions/gemini_api/gemini-2.5-flash/medmcqa/2025-09-28_20-21-06"
-
+    
     if "gemini" in output_dir:
         GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
         client = genai.Client(api_key=GEMINI_API_KEY)
-
-        batch_job = client.batches.get(name=job_name)
+        #batch_job = client.batches.get(name=job_name)
         print("Processing results...")
         save_results_gemini(job_name, output_dir)
+        print("Done!")
+
+    elif "together" in output_dir:
+        client = Together() # auth defaults to os.environ.get("TOGETHER_API_KEY")
+        print("Processing results...")
+        save_results_together(job_name, output_dir)
         print("Done!")
 
     elif "openai" in output_dir:
         OPENAI_KEY = os.getenv("OPENAI_KEY")
         client = OpenAI(api_key=OPENAI_KEY)
-
+        print("Processing results...")
         save_results_openai(job_name, output_dir)
+        print("output_dir:", output_dir)
+        print("Done!")
+
+    else:
+        print("Unknown model in output directory path.")
+
    
