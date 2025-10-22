@@ -20,6 +20,8 @@ cd remedqa
 pip install -r requirements.txt
 ```
 
+---
+
 ## Data
 
 To construct ReMedQA, we draw from three widely used medical corpora, resulting in eight English-language MCQA tasks covering domains such as clinical reasoning, genetics, and anatomy.
@@ -254,23 +256,30 @@ python3 process_data/filter_medmcqa.py
 python3 process_data/process_dataset.py
 ```
 
-*Note: Check the input parameters within each script to adapt to your specific needs.*
+> *Note: Check the input parameters within each script to adapt to your specific needs.*
 
 ---
 
 ## Results
 
 ### Overall Perfomance
+The Figure below shows model performance on ReMedQA, comparing open-ended responses with all MCQA perturbation variants and reporting the averaged reliability metrics (**ReAcc** and **ReCon**) across datasets.
+
 <p align="center">
   <img src=".github/images/remedqa_abstract.png" alt="ReMedQA MCQA Consistency" style="width: 50%; height: auto;">
 </p>
 
 ### Dataset-Specific Reliability
+
+The Table below breaks down **ReAcc** and **ReCon** across the datasets in ReMedQA, revealing large reliability gaps across them.
+
 <p align="center">
   <img src=".github/images/remedqa_results.png" alt="ReMedQA Results">
 </p>
 
-### Consistency under Perturbations 
+### Consistency under Perturbations
+The Figure below analyzes reliability across perturbation types, showing the percentage of samples for which a model preserves the same prediction as in the standard MCQA setting.
+
 <p align="center">
   <img src=".github/images/remeqa_consistency_mcqa.png" alt="ReMedQA MCQA Consistency">
 </p>
