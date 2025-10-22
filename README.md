@@ -20,6 +20,74 @@ cd remedqa
 pip install -r requirements.txt
 ```
 
+## Data
+
+To construct ReMedQA, we draw from three widely used medical corpora, resulting in eight English-language MCQA tasks covering domains such as clinical reasoning, genetics, and anatomy.
+These datasets mirror both real-world medical scenarios and exam formats used in professional licensing and entrance tests.
+
+To reproduce the creation of our dataset please see [Data Preprocessing Pipeline](#data-preprocessing-pipeline).
+
+A summary of key statistics is shown below:
+
+| **Dataset**             | **MedQA** | **MedMCQA** | **Clinical** | **Genetics** | **Anatomy** | **Pro Med.** | **Biology** | **College Med.** |
+| ----------------------- | --------- | ----------- | ------------ | ------------ | ----------- | ------------ | ----------- | ---------------- |
+| **Answer Options**      | A/B/C/D   | A/B/C/D     | A/B/C/D      | A/B/C/D      | A/B/C/D     | A/B/C/D      | A/B/C/D     | A/B/C/D          |
+| **Avg. Question Words** | 118.2     | 14.1        | 11.1         | 12.3         | 13.7        | 105.5        | 22.4        | 48.8             |
+| **Test Size (orig.)**   | 1,273     | 4,183       | 265          | 100          | 135         | 272          | 144         | 173              |
+| **After Filtering**     | 1,259     | 1,000       | 193          | 82           | 125         | 254          | 109         | 132              |
+
+
+All datasets used in our experiments are available in the [`data/`](data/) directory.
+
+---
+
+### Raw Data
+
+* `data/benchmark.json` — original multiple-choice (closed-form) questions for each subset.
+* `data/benchmark_open.json` — open-ended reformulations of the same questions generated with **GPT-4.1**.
+
+  * If a conversion is not feasible, the `open_question` field is set to `"Not possible"` along with an explanatory note.
+  * This allows transparent inspection of which questions could not be reliably converted and why.
+
+
+---
+
+### Processed Data
+
+The folder [`data/processed/`](data/processed/) contains the **final filtered datasets** used for evaluation.
+
+* Filtering removes samples that could not be consistently converted into open-ended format.
+* For **MedMCQA**, we further perform **stratified subsampling to 1,000 items** to ensure balanced evaluation across subjects.
+
+---
+
+
+### Prompt Templates
+
+Prompt templates used during all experiments are stored in [`data/templates/`](data/templates/):
+
+* `templates.json` — templates for **non-reasoning models**.
+* `templates_think.json` — templates for **reasoning models**.
+* `options_only_templates_think.json` — templates for reasoning models in **“options only”** mode (i.e., question text removed).
+
+> 💡 *Reasoning models* are LLMs that produce an explicit reasoning trace before giving their final answer, often enclosed in tags such as `<thinking>...</thinking>`.
+> Examples include **Gemini 2.5 Flash** and **GPT-5-mini**.
+
+---
+
+### Data Ready for Inference
+
+The folder [`data/bench/`](data/bench/) provides **model-ready prompts** for each medical subset, supporting multiple modes: MCQ (standard multiple-choice), Open (open-ended questions), None of the provided, Fixed position, etc.
+
+For details on how to generate these input prompts for each mode, please refer to the [Creating Input Prompts](#creating-input-prompts) section.
+
+> When a file name includes the suffix `_think`, the prompt is specifically designed for **reasoning models**.
+
+---
+
+
+
+
 ## Quick Start
 
 ### Evaluating Open-Source Models (via vLLM)
