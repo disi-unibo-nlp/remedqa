@@ -106,6 +106,8 @@ OPENAI_API_KEY=<your_openai_api_key>
 
 These keys are required for accessing different model APIs.
 
+## 1. Run Evaluation
+
 ### Evaluating Open-Source Models (via vLLM)
 ```bash
 MODEL_TYPE="mediphi"
@@ -175,7 +177,7 @@ python3 -m src.get_api_results \
     $(if $OPTIONS_ONLY_MODE; then echo "--options-only-mode"; fi)  
 ```
 
-## Mapping Open-Ended Answers
+## 2. Mapping Open-Ended Answers via LLM Judge
 To map open-ended answers back to the original multiple-choice options:
 
 ```bash
@@ -183,7 +185,7 @@ To map open-ended answers back to the original multiple-choice options:
 python3 src/llm_judge.py --subset medqa --completion_dir out/completions/mediphi
 ```
 
-## Convert Judge Predicitions
+### Convert Judge Predicitions
 To convert the final judge predictions for a dataset (e.g., MedQA):
 
 ```bash
@@ -193,6 +195,22 @@ python3 -m src.utils.convert_judge_preds \
   --input_path "<your_input_dir>/judges_medqa.jsonl"
 ```
 
+## 3. Computing Evaluation Scores
+Calculate ReAcc and ReCon scores:
+
+```bash
+MODEL_NAME="together_api/openai/gpt-oss-120b" #"openai_api/gpt-5-mini" #"together_api/openai/gpt-oss-120b" "llama3" "gemini_api/gemini-2.5-flash" #"together_api/meta-llama/Llama-3.3-70B-Instruct-Turbo"  "gemma3" "medgemma" "llama3" "Llama3-Med42-8B" "mediphi" "Phi-3.5-mini"
+OPTIONS_ONLY_MODE=false
+
+echo "Evaluating API Models..."
+python3 -m src.bench_api_models \
+    --output-dir "$OUTPUT_DIR" \
+    --subset "$SUBSET" \
+    --model-name "$MODEL_NAME" \
+    $(if $OPTIONS_ONLY_MODE; then echo "--options-only-mode"; fi)  
+```
+
+---
 
 ## Creating Input Prompts
 Generate input prompts for each data mode:
@@ -240,22 +258,6 @@ else
     done
 fi
 ```
-
-## Computing Evaluation Scores
-Calculate ReAcc and ReCon scores:
-
-```bash
-MODEL_NAME="together_api/openai/gpt-oss-120b" #"openai_api/gpt-5-mini" #"together_api/openai/gpt-oss-120b" "llama3" "gemini_api/gemini-2.5-flash" #"together_api/meta-llama/Llama-3.3-70B-Instruct-Turbo"  "gemma3" "medgemma" "llama3" "Llama3-Med42-8B" "mediphi" "Phi-3.5-mini"
-OPTIONS_ONLY_MODE=false
-
-echo "Evaluating API Models..."
-python3 -m src.bench_api_models \
-    --output-dir "$OUTPUT_DIR" \
-    --subset "$SUBSET" \
-    --model-name "$MODEL_NAME" \
-    $(if $OPTIONS_ONLY_MODE; then echo "--options-only-mode"; fi)  
-```
-
 
 ## Data Preprocessing Pipeline
 
