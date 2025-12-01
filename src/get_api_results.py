@@ -77,6 +77,11 @@ def save_results_gemini(job_name, output_dir):
                         answer = part['text']
                         final_answer = parse_final_answer(answer, mode_item, model_name="gemini")
                 
+                if mode_item in ['open', 'mcq']: # to use for judge mapping
+                    with open(f"{output_dir}/generations.jsonl", "a") as f:
+                        json.dump({"id_question": id_item, "dataset": dataset_item, "mode": mode_item, "gold_answer": gold_answer, "final_answer": final_answer, "completion": answer, "thinking": thinking}, f)
+                        f.write("\n")
+
                 with open(f"{output_dir}/generations_{mode_item}.jsonl", "a") as f:
                     json.dump({"id_question": id_item, "dataset": dataset_item, "mode": mode_item, "gold_answer": gold_answer, "final_answer": final_answer, "completion": answer, "thinking": thinking}, f)
                     f.write("\n")
@@ -160,6 +165,12 @@ def save_results_openai(job_name, output_dir):
                     elif out['type'] == "message":
                         completion = out['content'][0]['text'] if out['content'] else ""
                         final_answer = parse_final_answer(completion, mode_item, model_name="openai")
+                
+                if mode_item in ['open', 'mcq']: # to use for judge mapping
+                    with open(f'{output_dir}/generations.jsonl', 'a') as f:
+                        json.dump({"id_question": id_item, "dataset": dataset_item, "mode": mode_item, "gold_answer": gold_answer, "final_answer": final_answer, "completion": completion, "thinking": thinking, "thinking_length": usage_info}, f)
+                        f.write("\n")
+                
                 print(f'{output_dir}/generations_{mode_item}.jsonl')
                 with open(f'{output_dir}/generations_{mode_item}.jsonl', 'a') as f:
                     json.dump({"id_question": id_item, "dataset": dataset_item, "mode": mode_item, "gold_answer": gold_answer, "final_answer": final_answer, "completion": completion, "thinking": thinking, "thinking_length": usage_info}, f)
@@ -230,7 +241,13 @@ def save_results_together(job_name, output_dir):
                         final_answer_idx = reasoning.rfind("Final Answer:")
                         if final_answer_idx >= 0:
                             final_answer = reasoning[final_answer_idx+len("Final Answer:"):].strip()
-                
+
+            if mode_item in ['open', 'mcq']: # to use for judge mapping
+                with open(output_dir + f"/generations.jsonl", "a") as f: 
+                    out_dict = {"id_question": id, "mode": mode_item, "gold_answer": gold_answer, "final_answer": final_answer,  "correct": str(gold_answer).replace(".","") == str(final_answer).replace(".",""), "completion": completion, "thinking": reasoning, "thinking_length": completion_length }
+                    json.dump(out_dict, f)
+                    f.write("\n")
+
             with open(output_dir + f"/generations_{mode_item}.jsonl", "a") as f: 
                 out_dict = {"id_question": id, "mode": mode_item, "gold_answer": gold_answer, "final_answer": final_answer,  "correct": str(gold_answer).replace(".","") == str(final_answer).replace(".",""), "completion": completion, "thinking": reasoning, "thinking_length": completion_length }
                 json.dump(out_dict, f)

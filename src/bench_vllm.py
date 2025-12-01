@@ -816,6 +816,12 @@ def main(args):
             result = {"id_question": ids[id_out], "mode": modes[id_out], "gold_answer": gold_answers[id_out], "final_answer": extracted_final_answer, "correct": gold_answers[id_out] == extracted_final_answer, "completion": generated_text, "thinking_length": len(tokenizer.encode(thinking))}
             # # save results
             os.makedirs(f'out/completions/{args.model_type}/{args.subset}', exist_ok=True)
+
+            if modes[id_out] in ["open", "mcq"]: # to use for judge mapping
+                with open(f"out/completions/{args.model_type}/{args.subset}/generations.jsonl", "a") as f:
+                    json.dump(result, f)
+                    f.write("\n")
+
             with open(f"out/completions/{args.model_type}/{args.subset}/generations_{modes[id_out]}.jsonl", "a") as f:
                 json.dump(result, f)
                 f.write("\n")
