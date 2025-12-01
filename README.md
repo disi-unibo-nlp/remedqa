@@ -183,6 +183,17 @@ To map open-ended answers back to the original multiple-choice options:
 python3 src/llm_judge.py --subset medqa --completion_dir out/completions/mediphi
 ```
 
+## Convert Judge Predicitions
+To convert the final judge predictions for a dataset (e.g., MedQA):
+
+```bash
+python3 -m src.utils.convert_judge_preds \
+  --subset "medqa" \
+  --model_name "together_api/openai/gpt-oss-120b" \
+  --input_path "<your_input_dir>/judges_medqa.jsonl"
+```
+
+
 ## Creating Input Prompts
 Generate input prompts for each data mode:
 
