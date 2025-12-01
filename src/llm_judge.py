@@ -219,12 +219,14 @@ if __name__ == "__main__":
     with open(f'{args.completion_dir}/{args.subset}/generations.jsonl') as f:
         completions = [json.loads(line) for line in f.readlines()]
         completions = [el for el in completions if el['id_question'] not in non_possible_ids]
-        if "mode" in completions[0]:
-            completion_mcq = [item for item in completions if item['mode'] == "mcq"]
-            completions = [item for item in completions if item['mode'] == "open"]
-        else:
-            completion_mcq = completions[::2]
-            completions = completions[1::2]
+        
+        completion_mcq = [item for item in completions if item['mode'] == "mcq"]
+        completions = [item for item in completions if item['mode'] == "open"]
+
+        # sanity check
+        assert len(completions) > 0, "No 'open' completions found!"
+        assert len(completion_mcq) > 0, "No 'mcq' completions found!"
+
         completions_ids = [item["id_question"] for item in completions]
 
     with open(args.dataset_path) as f:
