@@ -164,15 +164,19 @@
       <div class="column is-four-fifths">
         <h2 class="title is-3">Introduction</h2>
         <div class="content has-text-justified">
-          <p>
-            Recent advances in large language models (LLMs) have demonstrated strong mathematical reasoning abilities, even in visual contexts, with some models surpassing human performance on existing benchmarks. However, these benchmarks lack structured age categorization, clearly defined skill requirements, and—crucially—were not designed to assess human performance in international competitions.
-          </p>
+          
+        <p>
+            Medical multiple-choice question answering (MCQA) benchmarks report near-human accuracy, with some approaching saturation and fueling claims of clinical readiness. Yet a single accuracy score is a poor proxy for competence: models that change answers under minor perturbations cannot be considered reliable. We argue that reliability underpins accuracy—only consistent predictions make correctness meaningful.
+            </p>
           <p> 
-            To address these limitations, we introduce MathGames, a new benchmark of 2,183 high-quality mathematical problems (both text-only and multimodal) in an open-ended format, sourced from an international mathematical games championships. Spanning seven age groups and a skill-based taxonomy, MathGames enables a structured evaluation of LLMs' mathematical and logical reasoning abilities.
-          </p>
+            We release ReMedQA, a benchmark suite that augments three standard medical MCQA datasets with open-answer variants and systematically perturbed items. Building on this, we introduce ReAcc and ReCon, two reliability metrics: ReAcc measures the proportion of questions answered accurately across all variations, while ReCon measures the proportion answered consistently regardless of correctness.
+            </p>
           <p> 
-            Our experiments reveal a substantial gap between state-of-the-art LLMs and human participants—even 11-year-olds consistently outperform some of the strongest models—highlighting the need for advancements. Further, our detailed error analysis offers valuable insights to guide future research.
-          </p>
+            Our evaluation shows that high MCQA accuracy masks low reliability: models remain sensitive to format and perturbation changes, and domain specialization offers no robustness gain. MCQA underestimates smaller models while inflating large ones that exploit structural cues—with some producing correct answers without seeing the question.
+            </p>
+           <p>
+            These findings show that, despite near-saturated accuracy, we are not yet done with medical multiple-choice benchmarks. 
+            </p> 
         </div>
       </div>
     </div>
