@@ -136,48 +136,6 @@
       <div class="columns is-centered m-6">
         <div class="column is-full has-text-centered content">
           <div id="results-carousel" class="carousel results-carousel">
-
-            <div class="box m-5">
-              <div class="content has-text-centered">
-                <div class="responsive-image-container">
-                  <img src="images/scores.png" alt="overall" />
-                  <p>
-                    <b>LLM evaluation on ReMedQA.</b>
-                    Colored: MCQA accuracy; white: open-answer accuracy.
-                    ReAcc (green): % of questions answered accurately across all variations;
-                    ReCon (black): % of questions answered consistently (same prediction)
-                    across all variations.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div class="box m-5">
-              <div class="content has-text-centered">
-                <div class="responsive-image-container">
-                  <img src="images/scores.png" alt="overall" />
-                  <p>
-                    <b>LLM evaluation on ReMedQA.</b>
-                    Colored: MCQA accuracy; white: open-answer accuracy.
-                    ReAcc (green): % of questions answered accurately across all variations;
-                    ReCon (black): % of questions answered consistently (same prediction)
-                    across all variations.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- <section class="section">
-    <div class="container" style="margin-top: -150px; margin-bottom: -100px;">
-      <div class="columns is-centered m-6">
-        <div class="column is-full has-text-centered content">
-          <div id="results-carousel" class="carousel results-carousel">
             <div class="box m-5">
               <div class="content has-text-centered">
                 <img src="images/scores.png" alt="overall" width="70%" />
@@ -214,10 +172,10 @@
             </p>
             </div>
           </div> -->
-  </div>
-  </div>
-  </div>
-  </section> -->
+          </div>
+        </div>
+      </div>
+  </section>
 
 
   <section class="section">
@@ -269,6 +227,29 @@
 
   <section class="section">
     <div class="container">
+      <div class="content has-text-justified">
+        <h2 class="title is-3">How We Designed ReMedQA</h2>
+
+        <p>
+          ReMedQA evaluates medical AI models in two key ways: <strong>Closed format</strong>,
+          where models choose from multiple-choice options, and <strong>Open format</strong>,
+          where models generate free-form answers that are then matched to the original options.
+          This dual approach helps us understand how reliably models can answer medical questions.
+        </p>
+
+        <p>
+          To truly test reliability, we created five different versions of each question that mean
+          the same thing but look different on the surface. If a model is truly reliable, it should
+          give consistent answers across all these variations. Think of it like asking the same
+          medical question in slightly different ways - a trustworthy expert should recognize they're
+          the same question and give the same answer every time.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container">
       <div class="columns is-centered is-vcentered">
 
         <!-- FIGURA A SINISTRA -->
@@ -315,7 +296,7 @@
               <li>
                 <strong>None Provided.</strong>
                 The gold option is replaced with the string
-                <em>“None of the provided options”</em>, requiring models to recognize
+                <em>"None of the provided options"</em>, requiring models to recognize
                 when the correct answer is absent from the listed options.
               </li>
             </ul>
