@@ -215,16 +215,10 @@
 
       <!-- TESTO A DESTRA -->
       <div class="column is-7">
-        <h2 class="title is-3">Overview</h2>
+        <h2 class="title is-3">MCQA Perturbations</h2>
 
        <div class="content has-text-justified">
   <ul>
-    <li>
-      <strong>Fixed Position.</strong>
-      We always place the gold option in position <strong>D</strong>.
-      We select D because it is the least frequent gold position in the datasets, minimizing positional priors while stressing
-      robustness to order.
-    </li>
 
     <li>
       <strong>No Labels.</strong>
@@ -233,16 +227,23 @@
     </li>
 
     <li>
-      <strong>Select Incorrect.</strong>
-      Models must choose all incorrect options instead of the gold one,
-      probing whether they can robustly identify distractors.
-    </li>
-
-    <li>
       <strong>Roman Numerals.</strong>
       Standard labels are replaced with
       <strong>I, II, III, IV</strong>, testing invariance to alternative
       labeling schemes.
+    </li>
+
+    <li>
+      <strong>Fixed Position.</strong>
+      We always place the gold option in position <strong>D</strong>.
+      We select D because it is the least frequent gold position in the datasets, minimizing positional priors while stressing
+      robustness to order.
+    </li>
+
+    <li>
+      <strong>Select Incorrect.</strong>
+      Models must choose all incorrect options instead of the gold one,
+      probing whether they can robustly identify distractors.
     </li>
 
     <li>
