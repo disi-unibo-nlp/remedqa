@@ -1,4 +1,4 @@
-# ReMedQA
+# [EACL 2026] ReMedQA
 
 This repository contains the dataset and code for our paper: **"ReMedQA: Are We Done With Medical Multiple-Choice Benchmarks?"**
 
@@ -10,7 +10,15 @@ We also introduce two new metrics:
 
 Our findings show that high accuracy can mask low reliability. Large models often exploit structural cues, while smaller models are underestimated by standard MCQA. Despite near-saturated accuracy, we are **not** yet done with medical multiple-choice benchmarks.
 
+## 📣  Update
+
+- This paper work has been accepted for publication at the Main Track of **EACL 2026**!
+
 ---
+
+🚧 **Repository status**  
+> The repository is currently **under refactoring** to improve code structure, documentation, and usability.  
+Some components may change in the coming weeks. Please check back soon for a more stable release.
 
 ## ⚙️ Installation
 
