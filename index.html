@@ -132,100 +132,46 @@
   </section>
 
   <section class="section">
-    <div class="container responsive-container">
+    <div class="container" style="margin-top: -150px; margin-bottom: -100px;">
       <div class="columns is-centered m-6">
         <div class="column is-full has-text-centered content">
           <div id="results-carousel" class="carousel results-carousel">
-            <div class="box responsive-box">
+
+            <div class="box m-5">
               <div class="content has-text-centered">
-                <img src="images/scores.png" alt="overall" class="responsive-image" />
-                <p class="responsive-text">
-                  <b>LLM evaluation on ReMedQA.</b> Colored: MCQA accuracy; white: open-answer accuracy. ReAcc (green):
-                  % of questions answered accurately across all variations; ReCon (black): % of questions answered
-                  consistently (same prediction) across all variations.
-                </p>
+                <div class="responsive-image-container">
+                  <img src="images/scores.png" alt="overall" />
+                  <p>
+                    <b>LLM evaluation on ReMedQA.</b>
+                    Colored: MCQA accuracy; white: open-answer accuracy.
+                    ReAcc (green): % of questions answered accurately across all variations;
+                    ReCon (black): % of questions answered consistently (same prediction)
+                    across all variations.
+                  </p>
+                </div>
               </div>
             </div>
+
+            <div class="box m-5">
+              <div class="content has-text-centered">
+                <div class="responsive-image-container">
+                  <img src="images/scores.png" alt="overall" />
+                  <p>
+                    <b>LLM evaluation on ReMedQA.</b>
+                    Colored: MCQA accuracy; white: open-answer accuracy.
+                    ReAcc (green): % of questions answered accurately across all variations;
+                    ReCon (black): % of questions answered consistently (same prediction)
+                    across all variations.
+                  </p>
+                </div>
+              </div>
+            </div>
+
           </div>
         </div>
       </div>
     </div>
   </section>
-
-  <style>
-    /* Base styles */
-    .responsive-container {
-      margin-top: -150px;
-      margin-bottom: -100px;
-    }
-
-    .responsive-box {
-      margin: 1.25rem;
-    }
-
-    .responsive-image {
-      width: 70%;
-      max-width: 100%;
-      height: auto;
-    }
-
-    .responsive-text {
-      font-size: 1rem;
-    }
-
-    /* Tablet and below (768px and smaller) */
-    @media screen and (max-width: 768px) {
-      .responsive-container {
-        margin-top: -80px;
-        margin-bottom: -60px;
-      }
-
-      .responsive-box {
-        margin: 1rem;
-      }
-
-      .responsive-image {
-        width: 90%;
-      }
-
-      .responsive-text {
-        font-size: 0.95rem;
-      }
-    }
-
-    /* Mobile (480px and smaller) */
-    @media screen and (max-width: 480px) {
-      .responsive-container {
-        margin-top: -40px;
-        margin-bottom: -30px;
-      }
-
-      .responsive-box {
-        margin: 0.5rem;
-        padding: 1rem;
-      }
-
-      .responsive-image {
-        width: 100%;
-      }
-
-      .responsive-text {
-        font-size: 0.875rem;
-        padding: 0 0.5rem;
-      }
-
-      .columns.m-6 {
-        margin: 1rem !important;
-      }
-    }
-
-    /* Very small mobile (320px and smaller) */
-    @media screen and (max-width: 320px) {
-      .responsive-text {
-        font-size: 0.8rem;
-      }
-    }
-  </style>
 
   <!-- <section class="section">
     <div class="container" style="margin-top: -150px; margin-bottom: -100px;">
