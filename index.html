@@ -137,7 +137,7 @@
         <div id="results-carousel" class="carousel results-carousel">
           <div class="box m-5">
             <div class="content has-text-centered">
-              <img src="images/scores.png" alt="overall" width="60%" />
+              <img src="images/scores.png" alt="overall" width="70%" />
               <p>
                 <b>LLM evaluation on ReMedQA.</b> Colored: MCQA accuracy; white: open-answer accuracy. ReAcc (green): % of questions answered accurately across all variations; ReCon (black): % of questions answered consistently (same prediction) across all variations.
               </p>
@@ -146,11 +146,21 @@
           
           <div class="box m-5">
             <div class="content has-text-centered">
-              <img src="images/scores2.png" alt="overall2" width="40%"/>
-              <p> <b>Options Only performance.</b> Each model is evaluated by providing only the MCQA answer options, without the question prompt. the red dashed line indicates the random-guess baseline.
-              </p>
+
+                <div style="width: 70%; margin: 0 auto;">
+                <img src="images/scores.png" alt="overall" style="width: 100%;" />
+
+                <p>
+                    <b>LLM evaluation on ReMedQA.</b>
+                    Colored: MCQA accuracy; white: open-answer accuracy.
+                    ReAcc (green): % of questions answered accurately across all variations;
+                    ReCon (black): % of questions answered consistently (same prediction)
+                    across all variations.
+                </p>
+                </div>
+
             </div>
-          </div>
+        </div>
 
           <!-- <div class="box m-5">
             <div class="content has-text-centered">
