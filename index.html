@@ -137,6 +137,38 @@
   max-width: 40%;
   margin: 0 auto;
 }
+
+/* carousel images: ALWAYS responsive */
+.results-carousel img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 0 auto;
+}
+
+/* desktop sizing */
+.results-img {
+  max-width: 100%;
+}
+
+/* immagine più piccola su desktop */
+.results-img.small {
+  max-width: 30%;
+}
+
+/* mobile override */
+@media (max-width: 768px) {
+  .results-img.small {
+    max-width: 100%;
+  }
+}
+
+/* rimuove problemi da margini negativi */
+.results-section {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
 </style>
 
 <body>
@@ -658,7 +690,7 @@
   <section class="hero is-light is-small">
     <div class="hero-body has-text-centered">
       <h1 class="title is-1 mathvista">
-        <span class="mathvista" style="vertical-align: middle">Methodology</span>
+        <span class="mathvista" style="vertical-align: middle">Method</span>
       </h1>
     </div>
   </section>
@@ -836,40 +868,32 @@
     </div>
   </section>
 
-  <section class="section">
-    <div class="container" style="margin-top: -50px; margin-bottom: -100px;">
-      <div class="columns is-centered m-6">
-        <div class="column is-full has-text-centered content">
-          <div id="results-carousel" class="carousel results-carousel">
-            <div class="box m-5">
-              <div class="content has-text-centered">
-                <img src="images/options_only_def.png" alt="overall" width="30%" />
+<section class="section">
+  <div class="container results-section">
+    <div class="columns is-centered">
+      <div class="column is-full has-text-centered">
+        <div id="results-carousel" class="carousel results-carousel">
 
-              </div>
-            </div>
-
-            <div class="box m-5">
-              <div class="content has-text-centered">
-
-                <div class="content has-text-centered">
-                  <img src="images/consistency_perturbations.png" alt="overall" width="100%" />
-
-                </div>
-
-              </div>
-            </div>
-
-            <!-- <div class="box m-5">
-            <div class="content has-text-centered">
-              <img src="images/perturbations.png" alt="overall3" width="40%"/>
-              <p> <b>Semantic-preserving MCQA perturbations in ReMedQA.</b> Consistent predictions across sets indicate model reliability. the correct answer is highlighted.</p>
-            </p>
-            </div>
-          </div> -->
+          <!-- SLIDE 1 -->
+          <div class="box m-5">
+            <figure class="image results-img small">
+              <img src="images/options_only_def.png" alt="Options only">
+            </figure>
           </div>
+
+          <!-- SLIDE 2 -->
+          <div class="box m-5">
+            <figure class="image results-img">
+              <img src="images/consistency_perturbations.png" alt="Consistency perturbations">
+            </figure>
+          </div>
+
         </div>
       </div>
-  </section>
+    </div>
+  </div>
+</section>
+
 
   <section class="section">
     <div class="container">
