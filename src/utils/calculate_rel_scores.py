@@ -35,32 +35,38 @@ def calculate_overall_accuracy(accuracy_dict, only_closed=False, closed_list=Non
     consistent = []
     from collections import Counter
     fails = []
+    correct_ids = []
     for key, answers in accuracy_dict.items():
         if only_closed:
             all_answers = [el['answer'] for el in answers if el['mode'] != "open" and el['mode'] in list(closed_list)]
         else:
             all_answers = [el['answer'] for el in answers if el['mode'] in list(closed_list)]
-        #print(all_answers)
-       
-        #print(answer_dict)
-        consistent.append(sum(all_answers) == len(all_answers))
+        print("All answer:" , all_answers)
+               
+        if sum(all_answers) == len(all_answers):
+            correct_ids.append(key)
+            consistent.append(True)
+        else:
+            consistent.append(False)
+
     #print("Fails:", fails)
     total = len(consistent)
     overall_accuracy = sum(consistent) / total * 100 if total > 0 else 0
-    return overall_accuracy
+    return overall_accuracy, correct_ids
 
-def calculate_overall_consistency(consistency_dict, only_closed=False, closed_list=None):
-    consistent = []
+def calculate_overall_consistency(consistency_dict_correct, consistency_dict_wrong, only_closed=False, closed_list=None):
+    consistent = [1] * len(consistency_dict_correct)
     from collections import Counter
     fails = []
-    for key, answers in consistency_dict.items():
+    for key, answers in consistency_dict_wrong.items():
         if only_closed:
-            all_answers = [el['answer'] for el in answers if el['mode'] != "open" and el['mode'] in list(closed_list)]
+            all_answers = [el['answer'] for el in answers if el['answer'] and el['mode'] != "open" and el['mode'] in list(closed_list)]
         else:
-            all_answers = [el['answer'] for el in answers if el['mode'] in list(closed_list)]
+            all_answers = [el['answer'] for el in answers if el['answer'] and el['mode'] in list(closed_list)]
         #print(all_answers)
         try: 
             answer_dict = dict(Counter(all_answers)) if all_answers else {}
+            print("Answer dict:", answer_dict)
         except:
             fails.append(key)
             print("Fail:", all_answers)
@@ -103,7 +109,7 @@ def calculate_consistency(closed_completions, open_completions_dict, mode, datas
                 final_answer_closed = roman2letter[final_answer_closed]
             consistent.append(final_answer_open == final_answer_closed)
             mapped_final_answers.append({"id_question": id_completion, "answer": str(final_answer_closed)})
-            
+            print("Mapped roman numeral:", final_answer_closed )
         elif mode in ["incorrect", "options_only_incorrect"]:
             #print(final_answer_closed, final_answer_open)
             
@@ -114,6 +120,7 @@ def calculate_consistency(closed_completions, open_completions_dict, mode, datas
 
                 #print(final_answer_closed, final_answer_incorrect)
                 mapped_final_answers.append({"id_question": id_completion, "answer": str(final_answer_incorrect)})
+                
             else:
                 #print(final_answer_closed, "FAIL")
                 consistent.append(False)
@@ -143,7 +150,8 @@ def calculate_consistency(closed_completions, open_completions_dict, mode, datas
             answer = str(option2id_open[mapped_answer_closed]) if mapped_answer_closed in option2id_open else ""
             # get the mapping towards the original set 
             mapped_final_answers.append({"id_question": id_completion, "answer": answer})
-
+            print("Mapped fixed pos:", answer )
+            
         elif mode in ["no_symbols", "options_only_no_symbols"]:
             final_answer_closed = final_answer_closed.replace(".","").replace("[", "").replace("]","")
             dataset_open = dataset_gold['mcq'] if "mcq" in dataset_gold else  dataset_gold['options_only_mcq']
@@ -158,10 +166,11 @@ def calculate_consistency(closed_completions, open_completions_dict, mode, datas
 
             final_answer_closed = option2id_open[final_answer_closed] if final_answer_closed in option2id_open else ""
             mapped_final_answers.append({"id_question": id_completion, "answer": str(final_answer_closed)})
+            print("Mapped no symbols:", final_answer_closed )
         else:
             consistent.append(final_answer_open == final_answer_closed)
             mapped_final_answers.append({"id_question": id_completion, "answer": str(final_answer_closed)})
-
+            print("Mapped default:", final_answer_closed)
         
     total = len(consistent)
     consistency = sum(consistent) / total * 100 if total > 0 else 0
@@ -221,7 +230,7 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        "--option-only-mode",
+        "--options-only-mode",
         action="store_true",
         help="If set, restricts evaluation to option-only modes (overrides --modes)."
     )
@@ -270,7 +279,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
 
-    options_only_enabled = args.option_only_mode
+    options_only_enabled = args.options_only_mode
 
     if args.datasets is not None:
         datasets = args.datasets
@@ -355,7 +364,7 @@ if __name__ == "__main__":
 
         output.append(results)
 
-        result_dir_path = f"out/completions/{model_name}/results" if not options_only_enabled else f"out/completions/{model_name}/results_options_only"
+        result_dir_path = f"out/completions/{model_name}/results_NEW" if not options_only_enabled else f"out/completions/{model_name}/results_options_only_NEW"
         os.makedirs(result_dir_path, exist_ok=True)
         
         with open(f'{result_dir_path}/accuracy_summary.jsonl', 'a') as f:
@@ -369,22 +378,26 @@ if __name__ == "__main__":
         combinations = [combinations[-1]]
         
         for combo in combinations:
-            overall_accuracy = calculate_overall_accuracy(accuracy_dict=accuracy_dict, closed_list=combo)
+            overall_accuracy, correct_ids = calculate_overall_accuracy(accuracy_dict=accuracy_dict, closed_list=combo)
             overall_results[f"{dataset}_acc"] = round(overall_accuracy, 1)
             print("Modes set:", combo)
             print("Number of combo:", len(combo))
             print("OVERALL ACCURACY:", overall_accuracy)
-            overall_accuracy = calculate_overall_accuracy(accuracy_dict=accuracy_dict, only_closed=True, closed_list=combo)
+            overall_accuracy, _ = calculate_overall_accuracy(accuracy_dict=accuracy_dict, only_closed=True, closed_list=combo)
             print("OVERALL ACCURACY (closed only):", overall_accuracy)
             #print("--------")
             print()
-            overall_consistency = calculate_overall_consistency(consistency_dict=consistency_dict, closed_list=combo)
+            # filter consistency_dict to only include correct ids
+            consistency_dict_correct = {k: v for k, v in consistency_dict.items() if k in correct_ids}
+            consistency_dict_wrong = {k: v for k, v in consistency_dict.items() if k not in correct_ids}
+
+            overall_consistency = calculate_overall_consistency(consistency_dict_correct=consistency_dict_correct, consistency_dict_wrong=consistency_dict_wrong, closed_list=combo)
             #print("Modes set:", combo)
             #print("Number of combo:", len(combo))
             print("OVERALL CONSISTENCY:", overall_consistency)
             overall_results[f"{dataset}_rel"] = round(overall_consistency, 1)
 
-            overall_consistency = calculate_overall_consistency(consistency_dict=consistency_dict, only_closed=True, closed_list=combo)
+            overall_consistency = calculate_overall_consistency(consistency_dict_correct=consistency_dict_correct, consistency_dict_wrong=consistency_dict_wrong, only_closed=True, closed_list=combo)
             print("OVERALL CONSISTENCY (closed only):", overall_consistency)
             print("--------")
             print()
