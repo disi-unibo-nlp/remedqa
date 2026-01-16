@@ -301,20 +301,32 @@ python3 process_data/process_dataset.py
 The Figure below shows model performance on ReMedQA, comparing open-ended responses with all MCQA perturbation variants and reporting the averaged reliability metrics (**ReAcc** and **ReCon**) across datasets.
 
 <p align="center">
-  <img src=".github/images/remedqa_abstract.png" alt="ReMedQA MCQA Consistency" style="width: 50%; height: auto;">
+  <img src=".github/images/abstract.png" alt="ReMedQA MCQA Consistency" style="width: 50%; height: auto;">
 </p>
 
-### Dataset-Specific Reliability
 
-The Table below breaks down **ReAcc** and **ReCon** across the datasets in ReMedQA, revealing large reliability gaps across them.
+## 📬 Contact
 
-<p align="center">
-  <img src=".github/images/remedqa_results.png" alt="ReMedQA Results">
-</p>
+For questions, feedback, or collaborations, feel free to reach out:
 
-### Consistency under Perturbations
-The Figure below analyzes reliability across perturbation types, showing the percentage of samples for which a model preserves the same prediction as in the standard MCQA setting.
+- **Alessio Cocchieri** — a.cocchieri@unibo.it  
+- **Luca Ragazzi** — l.ragazzi@unibo.it
 
-<p align="center">
-  <img src=".github/images/remeqa_consistency_mcqa.png" alt="ReMedQA MCQA Consistency">
-</p>
+
+## 📖 Citation
+
+If you use **ReMedQA** in your research, please cite our paper:
+
+```bibtex
+@inproceedings{cocchieri-etal-2026-remedqa,
+    title = {ReMedQA: Are We Done With Medical Multiple-Choice Benchmarks?},
+    author = {Cocchieri, Alessio and
+              Ragazzi, Luca and
+              Tagliavini, Giuseppe and
+              Moro, Gianluca},
+    booktitle = {Proceedings of the 19th Conference of the European Chapter of the Association for Computational Linguistics (Volume 1: Long Papers)},
+    month = mar,
+    year = {2026},
+    address = {Rabat, Morocco},
+    publisher = {Association for Computational Linguistics}
+}
