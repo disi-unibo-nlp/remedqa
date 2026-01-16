@@ -33,6 +33,101 @@
 
   <script src="./visualizer/data/data_public.js" defer></script>
 </head>
+<style>
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    padding: 20px;
+    background: #f6f8fa;
+  }
+
+  .table-container {
+    overflow-x: auto;
+    background: white;
+    border-radius: 6px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+    padding: 20px;
+  }
+
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: 13px;
+  }
+
+  th,
+  td {
+    padding: 8px 6px;
+    text-align: right;
+    border-right: 1px solid #d0d7de;
+  }
+
+  th:first-child,
+  td:first-child {
+    text-align: left;
+    font-weight: 500;
+    border-right: 2px solid #24292f;
+  }
+
+  th {
+    background: #f6f8fa;
+    font-weight: 600;
+    border-bottom: 2px solid #d0d7de;
+  }
+
+  .header-row th {
+    font-size: 11px;
+    padding: 4px 6px;
+  }
+
+  .metric-row th {
+    font-family: 'Courier New', monospace;
+    font-size: 11px;
+    font-weight: 500;
+  }
+
+  .section-header {
+    background: #f6f8fa;
+    font-weight: 700;
+    text-align: center !important;
+    border-top: 2px solid #24292f;
+    border-bottom: 1px solid #d0d7de;
+  }
+
+  .avg-col {
+    background: #eff6ff !important;
+    font-weight: 600;
+  }
+
+  .best {
+    font-weight: 700;
+  }
+
+  .second-best {
+    text-decoration: underline;
+  }
+
+  .dashed-row td {
+    border-top: 1px dashed #d0d7de;
+  }
+
+  .icon {
+    color: #6e7781;
+    font-size: 11px;
+    margin-left: 4px;
+  }
+
+  .medical {
+    color: #0969da;
+  }
+
+  tr:hover {
+    background: #f6f8fa;
+  }
+
+  tbody tr:last-child td {
+    border-bottom: 2px solid #24292f;
+  }
+</style>
 
 <body>
 
@@ -46,7 +141,7 @@
               <span class="mathvista" style="vertical-align: middle">ReMedQA</span>
             </h1>
             <h2 class="subtitle is-3 publication-subtitle">
-              Are We Done with Medical Multiple-Choice Benchmarks?
+              Are We Done With Medical Multiple-Choice Benchmarks?
             </h2>
             <div class="is-size-5 publication-authors">
               <span class="author-block">
@@ -135,44 +230,24 @@
     <div class="container" style="margin-top: -150px; margin-bottom: -100px;">
       <div class="columns is-centered m-6">
         <div class="column is-full has-text-centered content">
-          <div id="results-carousel" class="carousel results-carousel">
-            <div class="box m-5">
-              <div class="content has-text-centered">
-                <img src="images/scores.png" alt="overall" width="70%" />
-                <p>
-                  <b>LLM evaluation on ReMedQA.</b> Colored: MCQA accuracy; white: open-answer accuracy. ReAcc (green):
-                  % of questions answered accurately across all variations; ReCon (black): % of questions answered
-                  consistently (same prediction) across all variations.
-                </p>
-              </div>
+
+          <div class="box m-5">
+            <div class="content has-text-centered">
+              <img src="images/abstract.png" alt="overall" width="40%" />
+
             </div>
+          </div>
 
-            <div class="box m-5">
-              <div class="content has-text-centered">
 
-                <div style="width: 70%; margin: 0 auto;">
-                  <img src="images/scores.png" alt="overall" style="width: 100%;" />
 
-                  <p>
-                    <b>LLM evaluation on ReMedQA.</b>
-                    Colored: MCQA accuracy; white: open-answer accuracy.
-                    ReAcc (green): % of questions answered accurately across all variations;
-                    ReCon (black): % of questions answered consistently (same prediction)
-                    across all variations.
-                  </p>
-                </div>
-
-              </div>
-            </div>
-
-            <!-- <div class="box m-5">
+          <!-- <div class="box m-5">
             <div class="content has-text-centered">
               <img src="images/perturbations.png" alt="overall3" width="40%"/>
               <p> <b>Semantic-preserving MCQA perturbations in ReMedQA.</b> Consistent predictions across sets indicate model reliability. the correct answer is highlighted.</p>
             </p>
             </div>
           </div> -->
-          </div>
+
         </div>
       </div>
   </section>
@@ -188,31 +263,376 @@
 
             <p>
               Medical multiple-choice question answering (MCQA) benchmarks report near-human accuracy, with some
-              approaching saturation and fueling claims of clinical readiness. Yet a single accuracy score is a poor
-              proxy for competence: models that change answers under minor perturbations cannot be considered reliable.
-              We argue that reliability underpins accuracy—only consistent predictions make correctness meaningful.
+              approaching saturation and fueling claims of clinical readiness. Yet <strong>a single accuracy score is a
+                poor
+                proxy for competence</strong>: models that change answers under minor perturbations cannot be considered
+              reliable.
+              We argue that <strong>reliability underpins accuracy</strong>—only consistent predictions make correctness
+              meaningful.
             </p>
             <p>
-              We release ReMedQA, a benchmark suite that augments three standard medical MCQA datasets with open-answer
-              variants and systematically perturbed items. Building on this, we introduce ReAcc and ReCon, two
+              We release <strong>ReMedQA</strong>, a benchmark suite that augments three standard medical MCQA datasets
+              with open-answer
+              variants and systematically perturbed items. Building on this, we introduce <strong>ReAcc</strong> and
+              <strong>ReCon</strong>, two
               reliability metrics: ReAcc measures the proportion of questions answered accurately across all variations,
               while ReCon measures the proportion answered consistently regardless of correctness.
             </p>
             <p>
-              Our evaluation shows that high MCQA accuracy masks low reliability: models remain sensitive to format and
+              Our evaluation shows that <strong>high MCQA accuracy masks low reliability</strong>: models remain
+              sensitive to format and
               perturbation changes, and domain specialization offers no robustness gain. MCQA underestimates smaller
-              models while inflating large ones that exploit structural cues—with some producing correct answers without
-              seeing the question.
+              models while inflating large ones that exploit structural cues—with some <strong>producing correct answers
+                without
+                seeing the question</strong>.
             </p>
             <p>
-              these findings show that, despite near-saturated accuracy, we are not yet done with medical
-              multiple-choice benchmarks.
+              These findings show that, despite near-saturated accuracy, <strong>we are not yet done with medical
+                multiple-choice benchmarks</strong>.
             </p>
           </div>
         </div>
       </div>
     </div>
   </section>
+
+  <!-- LEADERBOARD SECTION -->
+  <section class="hero is-light is-small" id="leaderboard">
+    <div class="hero-body has-text-centered">
+      <h1 class="title is-1 mathvista">
+        <span class="mathvista" style="vertical-align: middle">Leaderboard on ReMedQA</span>
+      </h1>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container">
+
+      <div class="columns is-centered">
+        <div class="column is-full has-text-centered content">
+
+          <!--      <h2 class="title is-3">Textual Problems</h2>
+<div class="content">
+  <b>CE, C1, C2, L1, L2, GP, HC:</b> Accuracy across age groups.  
+  <br>
+  <b>Avg:</b> Overall average.  
+  <br> -->
+
+
+
+          <table>
+            <thead>
+              <tr class="header-row">
+                <th rowspan="2"><strong>ReMedQA</strong></th>
+                <th colspan="2"><em>Pro Med.</em></th>
+                <th colspan="2"><em>College Med.</em></th>
+                <th colspan="2"><em>Anatomy</em></th>
+                <th colspan="2"><em>Clinical</em></th>
+                <th colspan="2"><em>Biology</em></th>
+                <th colspan="2"><em>Genetics</em></th>
+                <th colspan="2"><strong>MMLU Avg</strong></th>
+                <th colspan="2"><strong>MedQA</strong></th>
+                <th colspan="2"><strong>MedMCQA</strong></th>
+                <th colspan="2" class="avg-col"><strong>Avg</strong></th>
+              </tr>
+              <tr class="metric-row">
+                <th>ReAcc</th>
+                <th>ReCon</th>
+                <th>ReAcc</th>
+                <th>ReCon</th>
+                <th>ReAcc</th>
+                <th>ReCon</th>
+                <th>ReAcc</th>
+                <th>ReCon</th>
+                <th>ReAcc</th>
+                <th>ReCon</th>
+                <th>ReAcc</th>
+                <th>ReCon</th>
+                <th><strong>ReAcc</strong></th>
+                <th><strong>ReCon</strong></th>
+                <th><strong>ReAcc</strong></th>
+                <th><strong>ReCon</strong></th>
+                <th><strong>ReAcc</strong></th>
+                <th><strong>ReCon</strong></th>
+                <th class="avg-col"><strong>ReAcc</strong></th>
+                <th class="avg-col"><strong>ReCon</strong></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td colspan="21" class="section-header"><strong>Large Models</strong></td>
+              </tr>
+              <tr>
+                <td>GPT-5-mini <span class="icon">🧠</span></td>
+                <td>76.4</td>
+                <td>77.5</td>
+                <td>58.3</td>
+                <td>66.7</td>
+                <td>65.6</td>
+                <td>73.6</td>
+                <td>61.1</td>
+                <td>68.9</td>
+                <td>67.0</td>
+                <td>71.3</td>
+                <td>85.4</td>
+                <td>86.6</td>
+                <td>69.0</td>
+                <td>74.1</td>
+                <td>65.9</td>
+                <td>68.2</td>
+                <td>39.1</td>
+                <td>46.0</td>
+                <td class="avg-col best">58.0</td>
+                <td class="avg-col best">62.8</td>
+              </tr>
+              <tr>
+                <td>GPT-OSS-120B <span class="icon">🧠</span></td>
+                <td>72.0</td>
+                <td>76.8</td>
+                <td>59.8</td>
+                <td>65.9</td>
+                <td>54.4</td>
+                <td>65.6</td>
+                <td>57.0</td>
+                <td>65.3</td>
+                <td>70.6</td>
+                <td>74.3</td>
+                <td>79.3</td>
+                <td>84.1</td>
+                <td>65.5</td>
+                <td>72.0</td>
+                <td>62.4</td>
+                <td>67.6</td>
+                <td>34.4</td>
+                <td>43.9</td>
+                <td class="avg-col second-best">54.1</td>
+                <td class="avg-col second-best">61.2</td>
+              </tr>
+              <tr>
+                <td>Gemini-2.5-Flash <span class="icon">🧠</span></td>
+                <td>57.9</td>
+                <td>60.5</td>
+                <td>46.2</td>
+                <td>55.7</td>
+                <td>52.0</td>
+                <td>62.4</td>
+                <td>46.6</td>
+                <td>52.8</td>
+                <td>60.6</td>
+                <td>67.9</td>
+                <td>72.0</td>
+                <td>73.2</td>
+                <td>55.9</td>
+                <td>62.1</td>
+                <td>47.6</td>
+                <td>50.7</td>
+                <td>33.2</td>
+                <td>39.4</td>
+                <td class="avg-col">45.6</td>
+                <td class="avg-col">50.7</td>
+              </tr>
+              <tr>
+                <td>GPT-OSS-20B <span class="icon">🧠</span></td>
+                <td>62.6</td>
+                <td>66.7</td>
+                <td>47.7</td>
+                <td>55.7</td>
+                <td>52.0</td>
+                <td>59.2</td>
+                <td>48.7</td>
+                <td>54.9</td>
+                <td>60.6</td>
+                <td>65.1</td>
+                <td>64.6</td>
+                <td>75.3</td>
+                <td>56.0</td>
+                <td>62.8</td>
+                <td>49.4</td>
+                <td>54.0</td>
+                <td>24.9</td>
+                <td>30.4</td>
+                <td class="avg-col">43.4</td>
+                <td class="avg-col">49.1</td>
+              </tr>
+              <tr>
+                <td>Llama-3.3-70B</td>
+                <td>53.5</td>
+                <td>56.5</td>
+                <td>34.8</td>
+                <td>40.9</td>
+                <td>48.8</td>
+                <td>53.6</td>
+                <td>42.5</td>
+                <td>45.6</td>
+                <td>55.0</td>
+                <td>56.0</td>
+                <td>63.4</td>
+                <td>64.6</td>
+                <td>49.7</td>
+                <td>52.9</td>
+                <td>34.0</td>
+                <td>37.9</td>
+                <td>23.6</td>
+                <td>28.6</td>
+                <td class="avg-col">35.8</td>
+                <td class="avg-col">39.8</td>
+              </tr>
+              <tr>
+                <td colspan="21" class="section-header"><strong>Small Models</strong></td>
+              </tr>
+              <tr>
+                <td>Llama-3-8B</td>
+                <td>9.8</td>
+                <td>17.7</td>
+                <td>9.8</td>
+                <td>15.9</td>
+                <td>12.8</td>
+                <td>27.2</td>
+                <td>11.9</td>
+                <td>20.2</td>
+                <td>15.6</td>
+                <td>25.7</td>
+                <td>23.2</td>
+                <td>37.8</td>
+                <td>13.9</td>
+                <td>24.1</td>
+                <td>6.1</td>
+                <td>11.9</td>
+                <td>6.8</td>
+                <td>16.0</td>
+                <td class="avg-col">8.9</td>
+                <td class="avg-col">17.3</td>
+              </tr>
+              <tr>
+                <td>Llama3-Med42-8B <span class="icon medical">💚</span></td>
+                <td>15.7</td>
+                <td>18.9</td>
+                <td>18.2</td>
+                <td>24.6</td>
+                <td>20.8</td>
+                <td>29.6</td>
+                <td>17.6</td>
+                <td>24.4</td>
+                <td>15.6</td>
+                <td>22.9</td>
+                <td>24.4</td>
+                <td>36.6</td>
+                <td>18.7</td>
+                <td>26.2</td>
+                <td>9.1</td>
+                <td>13.2</td>
+                <td>10.8</td>
+                <td>18.2</td>
+                <td class="avg-col second-best">12.9</td>
+                <td class="avg-col second-best">19.2</td>
+              </tr>
+              <tr class="dashed-row">
+                <td>Phi-3.5-mini</td>
+                <td>23.6</td>
+                <td>25.6</td>
+                <td>9.8</td>
+                <td>24.2</td>
+                <td>26.4</td>
+                <td>35.2</td>
+                <td>18.1</td>
+                <td>26.9</td>
+                <td>29.4</td>
+                <td>32.1</td>
+                <td>19.5</td>
+                <td>40.2</td>
+                <td>21.1</td>
+                <td>30.7</td>
+                <td>12.3</td>
+                <td>15.4</td>
+                <td>11.0</td>
+                <td>13.8</td>
+                <td class="avg-col best">14.8</td>
+                <td class="avg-col best">20.0</td>
+              </tr>
+              <tr>
+                <td>MediPhi-3.8B <span class="icon medical">💚</span></td>
+                <td>11.8</td>
+                <td>16.1</td>
+                <td>14.4</td>
+                <td>18.2</td>
+                <td>20.0</td>
+                <td>27.2</td>
+                <td>18.7</td>
+                <td>20.2</td>
+                <td>21.1</td>
+                <td>23.9</td>
+                <td>24.4</td>
+                <td>29.3</td>
+                <td>18.4</td>
+                <td>22.5</td>
+                <td>8.6</td>
+                <td>13.4</td>
+                <td>7.9</td>
+                <td>11.5</td>
+                <td class="avg-col">11.6</td>
+                <td class="avg-col">15.8</td>
+              </tr>
+              <tr class="dashed-row">
+                <td>Gemma-3-4B</td>
+                <td>5.9</td>
+                <td>8.3</td>
+                <td>5.3</td>
+                <td>9.8</td>
+                <td>16.0</td>
+                <td>19.2</td>
+                <td>6.7</td>
+                <td>9.4</td>
+                <td>12.8</td>
+                <td>17.4</td>
+                <td>23.2</td>
+                <td>23.8</td>
+                <td>11.7</td>
+                <td>14.6</td>
+                <td>3.3</td>
+                <td>6.2</td>
+                <td>3.8</td>
+                <td>6.8</td>
+                <td class="avg-col">6.3</td>
+                <td class="avg-col">9.2</td>
+              </tr>
+              <tr>
+                <td>MedGemma-4B <span class="icon medical">💚</span></td>
+                <td>2.8</td>
+                <td>4.3</td>
+                <td>2.3</td>
+                <td>5.3</td>
+                <td>4.8</td>
+                <td>10.4</td>
+                <td>3.6</td>
+                <td>5.7</td>
+                <td>6.4</td>
+                <td>9.2</td>
+                <td>8.5</td>
+                <td>11.0</td>
+                <td>4.7</td>
+                <td>7.6</td>
+                <td>2.5</td>
+                <td>5.8</td>
+                <td>2.7</td>
+                <td>5.3</td>
+                <td class="avg-col">3.3</td>
+                <td class="avg-col">6.2</td>
+              </tr>
+            </tbody>
+          </table>
+
+
+          <p style="font-size: 14px;">
+            <strong>Note:</strong> 🧠 Reasoning-focused LLMs; 💚 Medical-specialized LLMs.
+          </p>
+        </div>
+
+      </div>
+    </div>
+
+    </div>
+  </section>
+
 
 
   <!-- DATASET SECTION -->
@@ -305,7 +725,8 @@
         <h2 class="title is-3">Datasets</h2>
 
         <p>
-          We draw from three prominent medical corpora, yielding eight English-language MCQA tasks spanning specialties
+          To build ReMedQA, we draw from three prominent medical corpora, yielding eight English-language MCQA tasks
+          spanning specialties
           such as genetics, anatomy, and clinical reasoning.
           These datasets reflect both real-world scenarios encountered by medical professionals and exam formats
           commonly used in licensing and entrance tests.
@@ -326,8 +747,8 @@
           </li>
           <li>
             <strong>MMLU Medical Subset</strong>:
-            A subset of the Massive Multitask Language Understanding benchmark focusing on medical topics, including
-            anatomy, clinical knowledge, biology, and genetics.
+            A subset of the Massive Multitask Language Understanding benchmark focusing on six medical topics, including
+            clinical knowledge, medical genetics, anatomy, professional medicine, college biology, and college medicine
           </li>
       </div>
     </div>
@@ -335,363 +756,187 @@
     <div class="box m-5">
       <div class="content has-text-centered">
 
-        <div style="width: 70%; margin: 0 auto;">
-          <img src="images/scores.png" alt="overall" style="width: 100%;" />
+        <div style="width: 80%; margin: 0 auto;">
+          <img src="images/datasets.png" alt="overall" style="width: 100%;" />
 
 
         </div>
 
       </div>
-    </div>
-  </section>
-
-
-
-  <!-- LEADERBOARD SECTION -->
-  <section class="hero is-light is-small" id="leaderboard">
-    <div class="hero-body has-text-centered">
-      <h1 class="title is-1 mathvista">
-        <span class="mathvista" style="vertical-align: middle">Leaderboard on ReMedQA</span>
-      </h1>
     </div>
   </section>
 
   <section class="section">
     <div class="container">
+      <div class="content has-text-justified">
+        <h2 class="title is-3">Metrics</h2>
 
-      <div class="columns is-centered">
-        <div class="column is-full has-text-centered content">
+        <p>
+          To measure how reliable medical AI models really are, we created two key metrics that go
+          beyond simple accuracy. These metrics check whether models give consistent and correct
+          answers across all seven versions of each question.
+        </p>
 
-          <!--      <h2 class="title is-3">Textual Problems</h2>
-<div class="content">
-  <b>CE, C1, C2, L1, L2, GP, HC:</b> Accuracy across age groups.  
-  <br>
-  <b>Avg:</b> Overall average.  
-  <br> -->
+        <ul>
+          <li>
+            <strong>ReCon (Reliability through Consistency):</strong>
+            Measures if a model gives the <em>same answer</em> to all versions of a question.
+            Think of it like this: if you ask a doctor the same medical question in seven different
+            ways, they should recognize it's the same question and give the same answer every time.
+            A model scores points only when it's perfectly consistent across all formats - no
+            flip-flopping allowed!
+          </li>
 
-          <table class="js-sort-table" id="results">
-            <tr>
-              <td colspan="1"><strong>Model</strong></td>
-              <td colspan="2"><strong>Pro Med.</strong></td>
-              <td colspan="2"><strong>College Med.</strong></td>
-              <td colspan="2"><strong>Anatomy</strong></td>
-              <td colspan="2"><strong>Clinical</strong></td>
-              <td colspan="2"><strong>Biology</strong></td>
-              <td colspan="2"><strong>Genetics</strong></td>
-              <td colspan="2"><strong>MMLU Avg</strong></td>
-              <td colspan="2"><strong>MedQA</strong></td>
-              <td colspan="2"><strong>MedMCQA</strong></td>
-              <td colspan="2"><strong>Avg</strong></td>
-            </tr>
+          <li>
+            <strong>ReAcc (Reliability through Correctness):</strong>
+            This is even stricter - it measures if a model gets the <em>correct answer</em> for
+            all versions of a question. Consistency isn't enough if you're consistently wrong!
+            This metric only gives credit when the model is both reliable AND accurate across
+            every single variation. It's the gold standard for trustworthy medical AI.
+          </li>
+        </ul>
 
-            <tr>
-              <td colspan="1"></td>
-              <td><strong>ReAcc</strong></td>
-              <td><strong>ReCon</strong></td>
-              <td><strong>ReAcc</strong></td>
-              <td><strong>ReCon</strong></td>
-              <td><strong>ReAcc</strong></td>
-              <td><strong>ReCon</strong></td>
-              <td><strong>ReAcc</strong></td>
-              <td><strong>ReCon</strong></td>
-              <td><strong>ReAcc</strong></td>
-              <td><strong>ReCon</strong></td>
-              <td><strong>ReAcc</strong></td>
-              <td><strong>ReCon</strong></td>
-              <td><strong>ReAcc</strong></td>
-              <td><strong>ReCon</strong></td>
-              <td><strong>ReAcc</strong></td>
-              <td><strong>ReCon</strong></td>
-              <td><strong>ReAcc</strong></td>
-              <td><strong>ReCon</strong></td>
-              <td><strong>ReAcc</strong></td>
-              <td><strong>ReCon</strong></td>
-            </tr>
-
-            <tbody>
-              <!-- LARGE -->
-              <tr>
-                <td colspan="21"><strong>Large Models</strong></td>
-              </tr>
-              <tr>
-                <td>GPT-5-mini 🧠</td>
-                <td>76.4</td>
-                <td>74.7</td>
-                <td>58.3</td>
-                <td>63.6</td>
-                <td>65.6</td>
-                <td>72.8</td>
-                <td>61.1</td>
-                <td>65.8</td>
-                <td>67.0</td>
-                <td>70.4</td>
-                <td>85.4</td>
-                <td>86.6</td>
-                <td>69.0</td>
-                <td>72.3</td>
-                <td>65.9</td>
-                <td>64.6</td>
-                <td>39.1</td>
-                <td>42.4</td>
-                <td><strong>58.0</strong></td>
-                <td><strong>59.8</strong></td>
-              </tr>
-
-              <tr>
-                <td>GPT-OSS-120B 🧠</td>
-                <td>72.0</td>
-                <td>70.9</td>
-                <td>59.8</td>
-                <td>61.4</td>
-                <td>54.4</td>
-                <td>57.6</td>
-                <td>57.0</td>
-                <td>60.6</td>
-                <td>70.6</td>
-                <td>71.6</td>
-                <td>79.3</td>
-                <td>80.5</td>
-                <td>65.5</td>
-                <td>67.1</td>
-                <td>62.4</td>
-                <td>61.3</td>
-                <td>34.4</td>
-                <td>39.3</td>
-                <td><u>54.1</u></td>
-                <td><u>55.9</u></td>
-              </tr>
-
-              <tr>
-                <td>Gemini-2.5-Flash 🧠</td>
-                <td>57.9</td>
-                <td>57.7</td>
-                <td>46.2</td>
-                <td>48.9</td>
-                <td>52.0</td>
-                <td>60.0</td>
-                <td>46.6</td>
-                <td>48.2</td>
-                <td>60.6</td>
-                <td>60.6</td>
-                <td>72.0</td>
-                <td>72.0</td>
-                <td>55.9</td>
-                <td>57.9</td>
-                <td>47.6</td>
-                <td>47.9</td>
-                <td>33.2</td>
-                <td>36.4</td>
-                <td>45.6</td>
-                <td>47.4</td>
-              </tr>
-
-              <tr>
-                <td>GPT-OSS-20B 🧠</td>
-                <td>62.6</td>
-                <td>63.1</td>
-                <td>47.7</td>
-                <td>46.6</td>
-                <td>52.0</td>
-                <td>56.8</td>
-                <td>48.7</td>
-                <td>51.3</td>
-                <td>60.6</td>
-                <td>61.5</td>
-                <td>64.6</td>
-                <td>66.7</td>
-                <td>56.0</td>
-                <td>57.7</td>
-                <td>49.4</td>
-                <td>48.8</td>
-                <td>24.9</td>
-                <td>27.2</td>
-                <td>43.4</td>
-                <td>44.6</td>
-              </tr>
-
-              <tr>
-                <td>Llama-3.3-70B</td>
-                <td>53.5</td>
-                <td>55.3</td>
-                <td>34.8</td>
-                <td>37.1</td>
-                <td>48.8</td>
-                <td>51.2</td>
-                <td>42.5</td>
-                <td>43.0</td>
-                <td>55.0</td>
-                <td>54.1</td>
-                <td>63.4</td>
-                <td>64.6</td>
-                <td>49.7</td>
-                <td>50.9</td>
-                <td>34.0</td>
-                <td>36.0</td>
-                <td>23.6</td>
-                <td>26.6</td>
-                <td>35.8</td>
-                <td>37.8</td>
-              </tr>
-
-              <!-- SMALL -->
-              <tr>
-                <td colspan="21"><strong>Small Models</strong></td>
-              </tr>
-              <tr>
-                <td>Llama-3-8B</td>
-                <td>9.8</td>
-                <td>17.7</td>
-                <td>9.8</td>
-                <td>14.4</td>
-                <td>12.8</td>
-                <td>27.2</td>
-                <td>11.9</td>
-                <td>19.2</td>
-                <td>15.6</td>
-                <td>25.7</td>
-                <td>23.2</td>
-                <td>35.4</td>
-                <td>13.9</td>
-                <td>23.3</td>
-                <td>6.1</td>
-                <td>11.5</td>
-                <td>6.8</td>
-                <td>14.8</td>
-                <td>8.9</td>
-                <td>16.5</td>
-              </tr>
-
-              <tr>
-                <td>Llama3-Med42-8B 💚</td>
-                <td>15.7</td>
-                <td>18.5</td>
-                <td>18.2</td>
-                <td>23.8</td>
-                <td>20.8</td>
-                <td>28.0</td>
-                <td>17.6</td>
-                <td>20.2</td>
-                <td>15.6</td>
-                <td>22.0</td>
-                <td>24.4</td>
-                <td>34.1</td>
-                <td>18.7</td>
-                <td>24.4</td>
-                <td>9.1</td>
-                <td>13.0</td>
-                <td>10.8</td>
-                <td>16.7</td>
-                <td>12.9</td>
-                <td>18.0</td>
-              </tr>
-
-              <tr>
-                <td>Phi-3.5-mini</td>
-                <td>23.6</td>
-                <td>24.4</td>
-                <td>9.8</td>
-                <td>13.6</td>
-                <td>26.4</td>
-                <td>30.4</td>
-                <td>18.1</td>
-                <td>19.2</td>
-                <td>29.4</td>
-                <td>30.3</td>
-                <td>19.5</td>
-                <td>19.5</td>
-                <td>21.1</td>
-                <td>22.9</td>
-                <td>12.3</td>
-                <td>14.5</td>
-                <td>11.0</td>
-                <td>12.1</td>
-                <td>14.8</td>
-                <td>16.5</td>
-              </tr>
-
-              <tr>
-                <td>MediPhi-3.8B 💚</td>
-                <td>11.8</td>
-                <td>14.6</td>
-                <td>14.4</td>
-                <td>18.2</td>
-                <td>20.0</td>
-                <td>23.2</td>
-                <td>18.7</td>
-                <td>18.7</td>
-                <td>21.1</td>
-                <td>21.1</td>
-                <td>24.4</td>
-                <td>23.2</td>
-                <td>18.4</td>
-                <td>19.8</td>
-                <td>8.6</td>
-                <td>12.6</td>
-                <td>7.9</td>
-                <td>9.6</td>
-                <td>11.6</td>
-                <td>14.0</td>
-              </tr>
-
-              <tr>
-                <td>Gemma-3-4B</td>
-                <td>5.9</td>
-                <td>8.3</td>
-                <td>5.3</td>
-                <td>9.1</td>
-                <td>16.0</td>
-                <td>19.2</td>
-                <td>6.7</td>
-                <td>8.3</td>
-                <td>12.8</td>
-                <td>16.5</td>
-                <td>23.2</td>
-                <td>23.8</td>
-                <td>11.7</td>
-                <td>14.2</td>
-                <td>3.3</td>
-                <td>6.0</td>
-                <td>3.8</td>
-                <td>6.4</td>
-                <td>6.3</td>
-                <td>8.9</td>
-              </tr>
-
-              <tr>
-                <td>MedGemma-4B 💚</td>
-                <td>2.8</td>
-                <td>4.3</td>
-                <td>2.3</td>
-                <td>4.5</td>
-                <td>4.8</td>
-                <td>10.4</td>
-                <td>3.6</td>
-                <td>5.2</td>
-                <td>6.4</td>
-                <td>8.3</td>
-                <td>8.5</td>
-                <td>7.3</td>
-                <td>4.7</td>
-                <td>6.7</td>
-                <td>2.5</td>
-                <td>5.3</td>
-                <td>2.7</td>
-                <td>5.2</td>
-                <td>3.3</td>
-                <td>5.7</td>
-              </tr>
-            </tbody>
-          </table>
-
-
-          <p style="font-size: 14px;">
-            <strong>Note:</strong> 🧠 Reasoning-focused LLMs; 💚 Medical-specialized LLMs.
-          </p>
-        </div>
-
+        <p>
+          Together, these metrics reveal the true reliability of medical AI models. A high standard
+          accuracy score might look impressive, but ReCon and ReAcc show whether that performance is
+          stable and dependable - exactly what we need for real-world healthcare applications.
+        </p>
       </div>
     </div>
+  </section>
 
+  <section class="hero is-light is-small">
+    <div class="hero-body has-text-centered">
+      <h1 class="title is-1 mathvista">
+        <span class="mathvista" style="vertical-align: middle">Main Findings</span>
+      </h1>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container" style="margin-top: -50px; margin-bottom: -100px;">
+      <div class="columns is-centered m-6">
+        <div class="column is-full has-text-centered content">
+          <div id="results-carousel" class="carousel results-carousel">
+            <div class="box m-5">
+              <div class="content has-text-centered">
+                <img src="images/options_only.png" alt="overall" width="30%" />
+
+              </div>
+            </div>
+
+            <div class="box m-5">
+              <div class="content has-text-centered">
+
+                <div class="content has-text-centered">
+                  <img src="images/consistency_perturbations.png" alt="overall" width="100%" />
+
+                </div>
+
+              </div>
+            </div>
+
+            <!-- <div class="box m-5">
+            <div class="content has-text-centered">
+              <img src="images/perturbations.png" alt="overall3" width="40%"/>
+              <p> <b>Semantic-preserving MCQA perturbations in ReMedQA.</b> Consistent predictions across sets indicate model reliability. the correct answer is highlighted.</p>
+            </p>
+            </div>
+          </div> -->
+          </div>
+        </div>
+      </div>
+  </section>
+
+  <section class="section">
+    <div class="container">
+      <div class="content has-text-justified">
+
+        <h3 class="title is-4">Does High Accuracy Mean High Reliability?</h3>
+        <ul>
+          <li>
+            <p>
+              Our results reveal a surprising disconnect: <strong>models can score very high on accuracy
+                but still fail dramatically on reliability</strong>. Even when models answer most questions
+              correctly, they often give different answers when we rephrase the same question or change
+              the order of options. This instability is especially pronounced in smaller models, whose
+              predictions can flip completely based on minor format changes.
+            </p>
+          </li>
+          <li>
+            <p>
+              We also found a <strong>systematic gap between open-ended and multiple-choice performance</strong>.
+              Large models benefit from the structured format of multiple-choice questions, while smaller
+              models actually perform worse with multiple choices than when generating free-form answers -
+              suggesting they get confused by the extra options and formatting.
+            </p>
+          </li>
+          <li>
+            <p>
+              Most importantly, even frontier models with near-perfect accuracy scores show only
+              <strong>modest reliability</strong>. The gap between their accuracy and reliability metrics
+              reveals that <em>consistency - not accuracy - is the real bottleneck</em> for building
+              trustworthy medical AI. A model might know the right answer, but if it can't reliably give
+              that answer across different presentations of the same question, it's not ready for real-world
+              healthcare use.
+            </p>
+          </li>
+        </ul>
+
+
+        <h3 class="title is-4">Can Models Answer Without Reading the Question?</h3>
+        <ul>
+          <li>
+            <p>
+              We tested something surprising: what happens if we give models only the answer choices
+              without showing them the actual medical question? Shockingly, models still scored 40-50%
+              correct - far better than random guessing! This means they're picking up on patterns and
+              shortcuts in how answers are written, rather than truly understanding the medicine.
+            </p>
+          </li>
+          <li>
+            <p>
+              However, when we apply our reliability tests to these "options-only" answers, the models'
+              consistency completely falls apart. This proves they're using superficial tricks rather than
+              real medical knowledge - a serious concern for healthcare applications.
+            </p>
+          </li>
+        </ul>
+
+        <h3 class="title is-4">Which Question Variations Are Hardest?</h3>
+        <ul>
+          <li>
+            <p>
+              Our analysis reveals that the <strong>"None Provided"</strong> variation - where the correct
+              answer is replaced with "None of the provided options" - causes the biggest drop in consistency
+              across all models. This forces models to reason about what's missing rather than just picking
+              from what's there.
+            </p>
+          </li>
+          <li>
+            <p>
+              Interestingly, the <strong>"Select Incorrect"</strong> variation (asking for wrong answers
+              instead of right ones) mainly trips up smaller models. Larger models can handle this task
+              reversal much better, showing they understand the task more deeply.
+            </p>
+          </li>
+          <li>
+            <p>
+              Across different medical datasets like MedQA and MedMCQA, models show similar consistency
+              patterns within each format. However, MedMCQA becomes much harder when models need to stay
+              consistent across multiple formats at once - revealing hidden complexity that single-format
+              testing misses.
+            </p>
+          </li>
+          <li>
+            <p>
+              The bottom line: <strong>OpenAI's models</strong> (GPT-5-mini, GPT-OSS-120B) remain the most
+              reliable across all our tests, while smaller models show bigger drops in consistency, confirming
+              that reliability still improves with model size.
+            </p>
+          </li>
+        </ul>
+      </div>
     </div>
   </section>
 
@@ -702,7 +947,7 @@
     <div class="container is-max-desktop content">
       <h2 class="title is-3 has-text-centered">BibTeX</h2>
       <pre><code>@inproceedings{cocchieri-etal-2026-remedqa,
-    title = "ReMedQA: Are We Done with Medical Multiple-Choice Benchmarks?",
+    title = "ReMedQA: Are We Done With Medical Multiple-Choice Benchmarks?",
     author = "Cocchieri, Alessio  and
       Ragazzi, Luca  and
       Tagliavini, Giuseppe  and
@@ -711,8 +956,7 @@
     month = mar,
     year = "2026",
     address = "Rabat, Morocco",
-    publisher = "Association for Computational Linguistics",
-    abstract = "Medical multiple-choice question answering (MCQA) benchmarks report near-human accuracy, with some approaching saturation and fueling claims of clinical readiness. Yet a single accuracy score is a poor proxy for competence: models that change answers under minor perturbations cannot be considered reliable. We argue that reliability underpins accuracy—only consistent predictions make correctness meaningful. We release ReMedQA, a benchmark suite that augments three standard medical MCQA datasets with open-answer variants and systematically perturbed items. Building on this, we introduce ReAcc and ReCon, two reliability metrics: ReAcc measures the proportion of questions answered accurately across all variations, while ReCon measures the proportion answered consistently regardless of correctness. Our evaluation shows that high MCQA accuracy masks low reliability: models remain sensitive to format and perturbation changes, and domain specialization offers no robustness gain. MCQA underestimates smaller models while inflating large ones that exploit structural cues—with some producing correct answers without seeing the question. these findings show that, despite near-saturated accuracy, we are not yet done with medical multiple-choice benchmarks."
+    publisher = "Association for Computational Linguistics"
 }</div>
 </section>
 
