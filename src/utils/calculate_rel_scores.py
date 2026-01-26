@@ -33,8 +33,6 @@ def generate_combinations(items, required="open"):
 
 def calculate_overall_accuracy(accuracy_dict, only_closed=False, closed_list=None):
     consistent = []
-    from collections import Counter
-    fails = []
     correct_ids = []
     for key, answers in accuracy_dict.items():
         if only_closed:
@@ -49,7 +47,7 @@ def calculate_overall_accuracy(accuracy_dict, only_closed=False, closed_list=Non
         else:
             consistent.append(False)
 
-    #print("Fails:", fails)
+   
     total = len(consistent)
     overall_accuracy = sum(consistent) / total * 100 if total > 0 else 0
     return overall_accuracy, correct_ids
@@ -63,7 +61,7 @@ def calculate_overall_consistency(consistency_dict_correct, consistency_dict_wro
             all_answers = [el['answer'] for el in answers if el['answer'] and el['mode'] != "open" and el['mode'] in list(closed_list)]
         else:
             all_answers = [el['answer'] for el in answers if el['answer'] and el['mode'] in list(closed_list)]
-        #print(all_answers)
+        
         try: 
             answer_dict = dict(Counter(all_answers)) if all_answers else {}
             print("Answer dict:", answer_dict)
@@ -90,92 +88,146 @@ def filter_completions(completions, subset):
     filtered = [el for el in completions if el['id_question'] in possible_ids]
     return filtered
 
-def calculate_consistency(closed_completions, open_completions_dict, mode, dataset_gold):
-    consistent = []
+def normalize_answers(permutation_completions, reference_completions_dict, mode, dataset_gold):
+    """
+    Normalize answers from different formats to a standard format.
+    
+    Args:
+        permutation_completions: List of completions to normalize
+        reference_completions_dict: Dictionary of reference completions
+        mode: The format mode (e.g., 'roman_numeral', 'incorrect', 'fixed_pos', etc.)
+        dataset_gold: Gold standard dataset containing original question data
+    
+    Returns:
+        mapped_final_answers: List of dicts with normalized answers
+    """
     mapped_final_answers = []
-    for completion in closed_completions:
+    
+    for completion in permutation_completions:
         id_completion = completion['id_question']
-        final_answer_closed = completion['final_answer']
-        if id_completion in open_completions_dict and final_answer_closed:
-            open_completion = open_completions_dict[id_completion]
-            final_answer_open = open_completion['final_answer']
-        else:
-            #print("ERROR",id_completion in open_completions_dict, mode, "Final answer;", final_answer_closed)
+        final_answer_permutation = completion['final_answer']
+        
+        # Skip if no reference or no answer
+        if id_completion not in reference_completions_dict or not final_answer_permutation:
             continue
         
+        # Normalize based on mode
         if mode in ["roman_numeral", "options_only_roman_numeral"]:
             roman2letter = {'I': 'A', 'II': 'B', 'III': 'C', 'IV': 'D'}
-            if final_answer_closed in roman2letter:
-                final_answer_closed = roman2letter[final_answer_closed]
-            consistent.append(final_answer_open == final_answer_closed)
-            mapped_final_answers.append({"id_question": id_completion, "answer": str(final_answer_closed)})
-            print("Mapped roman numeral:", final_answer_closed )
-        elif mode in ["incorrect", "options_only_incorrect"]:
-            #print(final_answer_closed, final_answer_open)
+            normalized_answer = roman2letter.get(final_answer_permutation, final_answer_permutation)
+            mapped_final_answers.append({"id_question": id_completion, "answer": str(normalized_answer)})
+            print("Mapped roman numeral:", normalized_answer)
             
-            if final_answer_closed and len(final_answer_closed) == 3:
-                consistent.append(final_answer_open not in final_answer_closed)
-                final_answer_incorrect = set(['A', 'B', 'C', 'D']).difference(set(final_answer_closed))
-                final_answer_incorrect = next(iter(final_answer_incorrect))
-
-                #print(final_answer_closed, final_answer_incorrect)
-                mapped_final_answers.append({"id_question": id_completion, "answer": str(final_answer_incorrect)})
-                
+        elif mode in ["incorrect", "options_only_incorrect"]:
+            # For incorrect mode, convert list of 3 incorrect answers to the 1 correct answer
+            if final_answer_permutation and len(final_answer_permutation) == 3:
+                final_answer_incorrect = set(['A', 'B', 'C', 'D']).difference(set(final_answer_permutation))
+                normalized_answer = next(iter(final_answer_incorrect))
+                mapped_final_answers.append({"id_question": id_completion, "answer": str(normalized_answer)})
             else:
-                #print(final_answer_closed, "FAIL")
-                consistent.append(False)
-                mapped_final_answers.append({"id_question": id_completion, "answer": str(final_answer_closed)}) # randomly select the first, it won't be consistent
+                # Invalid format - keep as is
+                mapped_final_answers.append({"id_question": id_completion, "answer": str(final_answer_permutation)})
             
         elif mode in ["fixed_pos", "options_only_fixed_pos"]:
-            # map answer id to option value
+            # Map answer from fixed position format to original format
             dataset_fixed_pos = dataset_gold[mode]
             id2option_fixed_pos = dataset_fixed_pos[id_completion]['options']
-            #option2id_fixed_pos = {v: k for k, v in id2option_fixed_pos.items()}
-            mapped_answer_closed = id2option_fixed_pos[final_answer_closed] if final_answer_closed in id2option_fixed_pos else ""
-            mapped_answer_closed = mapped_answer_closed.replace(".","").replace("[", "").replace("]","")
-            # orginal dataset
-            dataset_open = dataset_gold['mcq'] if "mcq" in dataset_gold else  dataset_gold['options_only_mcq']
+            
+            # Get the option text from fixed position format
+            mapped_answer_permutation = id2option_fixed_pos.get(final_answer_permutation, "")
+            mapped_answer_permutation = mapped_answer_permutation.replace(".", "").replace("[", "").replace("]", "")
+            
+            # Get original dataset mapping
+            dataset_open = dataset_gold.get('mcq', dataset_gold.get('options_only_mcq'))
             id2option_open = dataset_open[id_completion]['options']
-            option2id_open = {v.replace(".","").replace("[", "").replace("]",""): k for k, v in id2option_open.items()}
-            #print(final_answer_open)
-            if not isinstance(final_answer_open, list) and final_answer_open in id2option_open:
-                mapped_answer_open = id2option_open[final_answer_open]
-                
-                mapped_answer_open = mapped_answer_open.replace(".","").replace("[", "").replace("]","")
-
-                consistent.append(mapped_answer_open == mapped_answer_closed)
-                
-            else:
-                consistent.append(False)
-            answer = str(option2id_open[mapped_answer_closed]) if mapped_answer_closed in option2id_open else ""
-            # get the mapping towards the original set 
-            mapped_final_answers.append({"id_question": id_completion, "answer": answer})
-            print("Mapped fixed pos:", answer )
+            option2id_open = {v.replace(".", "").replace("[", "").replace("]", ""): k 
+                            for k, v in id2option_open.items()}
+            
+            # Map to original answer ID
+            normalized_answer = option2id_open.get(mapped_answer_permutation, "")
+            mapped_final_answers.append({"id_question": id_completion, "answer": str(normalized_answer)})
+            print("Mapped fixed pos:", normalized_answer)
             
         elif mode in ["no_symbols", "options_only_no_symbols"]:
-            final_answer_closed = final_answer_closed.replace(".","").replace("[", "").replace("]","")
-            dataset_open = dataset_gold['mcq'] if "mcq" in dataset_gold else  dataset_gold['options_only_mcq']
+            # Remove symbols and map back to original format
+            final_answer_permutation = final_answer_permutation.replace(".", "").replace("[", "").replace("]", "")
+            
+            dataset_open = dataset_gold.get('mcq', dataset_gold.get('options_only_mcq'))
             id2option_open = dataset_open[id_completion]['options']
-            option2id_open = {v.replace(".","").replace("[", "").replace("]",""): k for k, v in id2option_open.items()}
-            if not isinstance(final_answer_open, list) and final_answer_open in id2option_open:
-                mapped_answer_open = id2option_open[final_answer_open].replace(".","").replace("[", "").replace("]","")
-                consistent.append(mapped_answer_open == final_answer_closed)
+            option2id_open = {v.replace(".", "").replace("[", "").replace("]", ""): k 
+                            for k, v in id2option_open.items()}
+            
+            normalized_answer = option2id_open.get(final_answer_permutation, "")
+            mapped_final_answers.append({"id_question": id_completion, "answer": str(normalized_answer)})
+            print("Mapped no symbols:", normalized_answer)
+            
+        else:
+            # Default: no normalization needed
+            mapped_final_answers.append({"id_question": id_completion, "answer": str(final_answer_permutation)})
+            print("Mapped default:", final_answer_permutation)
+    
+    return mapped_final_answers
+
+
+def calculate_consistency(mapped_final_answers, reference_completions_dict, mode, dataset_gold):
+    """
+    Calculate consistency between normalized answers and reference answers.
+    
+    Args:
+        mapped_final_answers: List of normalized answers from normalize_answers()
+        reference_completions_dict: Dictionary of reference completions
+        mode: The format mode (used for special comparison logic)
+        dataset_gold: Gold standard dataset (used for certain modes)
+    
+    Returns:
+        consistency: Percentage of consistent answers
+    """
+    consistent = []
+    
+    for mapped_answer in mapped_final_answers:
+        id_completion = mapped_answer['id_question']
+        normalized_answer = mapped_answer['answer']
+        
+        # Get reference answer
+        if id_completion not in reference_completions_dict:
+            continue
+            
+        reference_completion = reference_completions_dict[id_completion]
+        final_answer_reference = reference_completion['final_answer']
+        
+        # Compare based on mode
+        if mode in ["incorrect", "options_only_incorrect"]:
+            # For incorrect mode, the original answer was a list of 3 incorrect options
+            # We need to check if the reference is NOT in that original list
+            # But at this point, we've already normalized to the correct answer
+            # So we just compare normally
+            if normalized_answer:
+                # Check if we have the original permutation to validate
+                # Since we only have normalized answer, we compare directly
+                consistent.append(final_answer_reference == normalized_answer)
             else:
                 consistent.append(False)
-            # get the mapping towards the original set 
-
-            final_answer_closed = option2id_open[final_answer_closed] if final_answer_closed in option2id_open else ""
-            mapped_final_answers.append({"id_question": id_completion, "answer": str(final_answer_closed)})
-            print("Mapped no symbols:", final_answer_closed )
+                
+        elif mode in ["fixed_pos", "options_only_fixed_pos", "no_symbols", "options_only_no_symbols"]:
+            # For these modes, we need to compare the normalized answer to reference
+            dataset_open = dataset_gold.get('mcq', dataset_gold.get('options_only_mcq'))
+            id2option_open = dataset_open[id_completion]['options']
+            
+            if not isinstance(final_answer_reference, list) and final_answer_reference in id2option_open:
+                consistent.append(final_answer_reference == normalized_answer)
+            else:
+                consistent.append(False)
+                
         else:
-            consistent.append(final_answer_open == final_answer_closed)
-            mapped_final_answers.append({"id_question": id_completion, "answer": str(final_answer_closed)})
-            print("Mapped default:", final_answer_closed)
-        
+            # Default comparison
+            print("Comparing:", final_answer_reference, "vs", normalized_answer)
+            consistent.append(final_answer_reference == normalized_answer)
+    
     total = len(consistent)
     consistency = sum(consistent) / total * 100 if total > 0 else 0
     
-    return consistency, mapped_final_answers
+    return consistency
+
 
 def calculate_accuracy(completions, mode):
    
@@ -185,29 +237,9 @@ def calculate_accuracy(completions, mode):
             correct = [{'id_question': el['id_question'], 'answer': roman2letter[el['gold_answer']] == el['final_answer']} for el in completions]
         else:
             correct = [{'id_question': el['id_question'], 'answer': el['gold_answer'] == el['final_answer']} for el in completions]
-
-    elif mode == "yes_no_maybe":
-        correct = [{'id_question': el['id_question'], 'answer': el['final_answer'].lower() == "yes" if el['final_answer'] else False} for el in completions]
     elif mode in ["incorrect", "options_only", "options_only_incorrect"]:
         correct = [{'id_question': el['id_question'], 'answer': el['gold_answer'] == el['final_answer']} for el in completions]
-    elif mode =="idk_answer":
-        correct = []
-        total_idk = 0
-        for el in completions:
-
-            if el['final_answer'].upper() == "E":
-                total_idk += 1
-                correct.append(0)
-
-            elif el['gold_answer'] == el['final_answer']:
-                correct.append(1)
-
-            else: #el['gold_answer'] != el['final_answer']
-                correct.append(-1)
-        
-        print("Number of idk answers:", total_idk)
-
-    elif mode=="open":
+    elif mode == "open":
         correct = [{'id_question': el['id_question'], 'answer': el['gold_answer'].replace(".","").replace("[","").replace("]","") == el['final_answer'].replace(".","").replace("[","").replace("]","") or (el['valid_alternative'] == "Yes") if el['final_answer'] and el['gold_answer'] and not isinstance(el['final_answer'], list) else False} for el in completions]
     else:
         correct = [{'id_question': el['id_question'], 'answer': el['gold_answer'].replace(".","") == el['final_answer'].replace(".","") if el['final_answer'] and el['gold_answer'] else False} for el in completions]
@@ -276,10 +308,33 @@ if __name__ == "__main__":
         help="Output directory to save results."
     )
 
+    parser.add_argument(
+        "--reference-mode",
+        type=str,
+        choices=[
+            "open", 
+            "mcq", 
+            "incorrect", 
+            "none_of_the_provided", 
+            "roman_numeral", 
+            "fixed_pos", 
+            "no_symbols",
+            "options_only_mcq", 
+            "options_only_incorrect", 
+            "options_only_roman_numeral", 
+            "options_only_none_of_the_provided", 
+            "options_only_fixed_pos", 
+            "options_only_no_symbols"
+        ],
+        default="open",
+        help="Reference mode for consistency calculations."
+    )
+
     args = parser.parse_args()
 
 
     options_only_enabled = args.options_only_mode
+    reference_mode = args.reference_mode
 
     if args.datasets is not None:
         datasets = args.datasets
@@ -288,18 +343,24 @@ if __name__ == "__main__":
     
     if args.modes is not None:
         modes = args.modes
-
-    elif options_only_enabled:
-        modes = ['options_only_mcq', 'options_only_incorrect', 'options_only_roman_numeral', 
-                        'options_only_none_of_the_provided', 'options_only_fixed_pos', 'options_only_no_symbols']
+        # ensure 'open' is always as first mode
+        if "open" in modes:
+            modes.remove("open")
+            modes = ["open"] + modes
     else:
-        modes = ["open", "mcq", "incorrect", "roman_numeral", "fixed_pos", "no_symbols","none_of_the_provided"]  #"idk_answer"]#]#, "options_only"]#, "yes_no_maybe"]#, ]
+        modes = ["open", "mcq", "incorrect", "roman_numeral", "fixed_pos", "no_symbols","none_of_the_provided"] 
 
+    if options_only_enabled:
+        modes = ['options_only_' + mode for mode in modes if mode != "open"]
+        # ensure 'options_only_mcq' is first 
+        if "options_only_mcq" in modes:
+            modes.remove("options_only_mcq")
+            modes = ["options_only_mcq"] + modes
             
     model_name = args.model_name #"together_api/openai/gpt-oss-120b" #"openai_api/gpt-5-mini" # #"openai_api/gpt-5-mini" #"together_api/openai/gpt-oss-120b" #"openai_api/gpt-5-mini"  # "llama3"#"gemini_api/gemini-2.5-flash" #"together_api/meta-llama/Llama-3.3-70B-Instruct-Turbo" # #"llama3" #"openai_api/gpt-5-mini" ##"llama3" # # # #"medgemma" # # # #"openai_api/gpt-5-mini" #  # # #"openai_api/gpt-5-mini" #"gemini_api/gemini-2.5-flash" # # # #
 
     output = []
-    id2open_answer = {}
+    id2reference_answer = {}
 
     overall_results = {"model": model_name.split("/")[-1]}
     for dataset in datasets:
@@ -308,35 +369,30 @@ if __name__ == "__main__":
         
         if not options_only_enabled:
             with open(f"data/processed/{dataset_dir_name}_all.json") as f:
-                dataset_gold = json.load(f)#[args.subset]
+                dataset_gold = json.load(f)
         else:
             with open(f"data/processed/{dataset_dir_name}_options_only.json") as f:
-                dataset_gold = json.load(f)#[args.subset]
-
+                dataset_gold = json.load(f)
 
         if options_only_enabled:
             dataset_dir_name = dataset_dir_name + "_options_only"
+        
         consistency_dict = {}
         accuracy_dict = {}
         results = {}
         results["model_name"] = model_name
         results["dataset"] = dataset
-        #results["open"] = 0.0
-        #results["standard"] = 0.0
+        
         for mode in modes:
             
-            #dataset_gold_mode = dataset_gold[mode]
             print(f"Calculating accuracy for mode: {mode} | dataset: {dataset}")
             with open(f'out/completions/{model_name}/{dataset_dir_name}/generations_{mode}.jsonl', 'r') as f:
                 completions = [json.loads(line) for line in f.readlines()]
             completions = filter_completions(completions, dataset)
 
-            if mode == "open":
-                id2open_answer = {item['id_question']: item for item in completions}
-            if mode == "options_only_mcq":
-                id2open_answer = {item['id_question']: item for item in completions}
-
-
+            if mode in ["open", "options_only_mcq"]:
+                id2reference_answer = {item['id_question']: item for item in completions}
+            
             accuracy, final_answers = calculate_accuracy(completions, mode)
             
             results[mode] = round(accuracy, 1)
@@ -349,22 +405,32 @@ if __name__ == "__main__":
                 if id_answer not in accuracy_dict:
                     accuracy_dict[id_answer] = []
                 accuracy_dict[id_answer].append({"mode": mode, "answer": answer_content})
+                
+            # First, normalize the answers
+            mapped_final_answers = normalize_answers(
+                completions, 
+                id2reference_answer, 
+                mode, 
+                dataset_gold
+            )
 
-            if modes[0] in ["open", "options_only_mcq"] and mode not in ["yes_no_maybe", "options_only"]:
-                consistency, mapped_final_answers = calculate_consistency(completions, id2open_answer, mode, dataset_gold)
-                print(f"Consistency for mode {mode}: {consistency:.1f}%") 
-                for mapped_answer in mapped_final_answers:
-                    id_answer = mapped_answer['id_question']
-                    answer_content = mapped_answer['answer']
-                    if id_answer not in consistency_dict:
-                        consistency_dict[id_answer] = []
-                    consistency_dict[id_answer].append({"mode": mode, "answer": answer_content})
+            # Store normalized answers for overall consistency calculation
+            for mapped_answer in mapped_final_answers:
+                id_answer = mapped_answer['id_question']
+                answer_content = mapped_answer['answer']
+                if id_answer not in consistency_dict:
+                    consistency_dict[id_answer] = []
+                consistency_dict[id_answer].append({"mode": mode, "answer": answer_content})
+
+            # print consistency dict
+            print("Consistency dict:", consistency_dict)
+            
             print("------")
             print()    
 
         output.append(results)
 
-        result_dir_path = f"out/completions/{model_name}/results_NEW" if not options_only_enabled else f"out/completions/{model_name}/results_options_only_NEW"
+        result_dir_path = f"out/completions/{model_name}/results" if not options_only_enabled else f"out/completions/{model_name}/results_options_only"
         os.makedirs(result_dir_path, exist_ok=True)
         
         with open(f'{result_dir_path}/accuracy_summary.jsonl', 'a') as f:
@@ -373,36 +439,37 @@ if __name__ == "__main__":
                     f.write(json.dumps(res) + "\n")
         print("\n") 
 
-        # overall consistency
-        combinations = generate_combinations(modes) if not options_only_enabled else generate_combinations(modes, required="options_only_mcq")
-        combinations = [combinations[-1]]
         
-        for combo in combinations:
-            overall_accuracy, correct_ids = calculate_overall_accuracy(accuracy_dict=accuracy_dict, closed_list=combo)
-            overall_results[f"{dataset}_acc"] = round(overall_accuracy, 1)
-            print("Modes set:", combo)
-            print("Number of combo:", len(combo))
-            print("OVERALL ACCURACY:", overall_accuracy)
-            overall_accuracy, _ = calculate_overall_accuracy(accuracy_dict=accuracy_dict, only_closed=True, closed_list=combo)
-            print("OVERALL ACCURACY (closed only):", overall_accuracy)
-            #print("--------")
-            print()
-            # filter consistency_dict to only include correct ids
-            consistency_dict_correct = {k: v for k, v in consistency_dict.items() if k in correct_ids}
-            consistency_dict_wrong = {k: v for k, v in consistency_dict.items() if k not in correct_ids}
+        overall_accuracy, correct_ids = calculate_overall_accuracy(accuracy_dict=accuracy_dict, closed_list=modes)
+        overall_results[f"{dataset}_acc"] = round(overall_accuracy, 1)
+        print("Modes set:", modes)
+        print("Number of permutations:", len(modes))
+        print("OVERALL ACCURACY:", overall_accuracy)
+       
+        print()
+        # filter consistency_dict to only include correct ids
+        consistency_dict_correct = {k: v for k, v in consistency_dict.items() if k in correct_ids}
+        consistency_dict_wrong = {k: v for k, v in consistency_dict.items() if k not in correct_ids}
 
-            overall_consistency = calculate_overall_consistency(consistency_dict_correct=consistency_dict_correct, consistency_dict_wrong=consistency_dict_wrong, closed_list=combo)
-            #print("Modes set:", combo)
-            #print("Number of combo:", len(combo))
-            print("OVERALL CONSISTENCY:", overall_consistency)
-            overall_results[f"{dataset}_rel"] = round(overall_consistency, 1)
+        overall_consistency = calculate_overall_consistency(consistency_dict_correct=consistency_dict_correct, consistency_dict_wrong=consistency_dict_wrong, closed_list=modes)
+        print("OVERALL CONSISTENCY:", overall_consistency)
+        overall_results[f"{dataset}_rel"] = round(overall_consistency, 1)
 
-            overall_consistency = calculate_overall_consistency(consistency_dict_correct=consistency_dict_correct, consistency_dict_wrong=consistency_dict_wrong, only_closed=True, closed_list=combo)
-            print("OVERALL CONSISTENCY (closed only):", overall_consistency)
-            print("--------")
-            print()
+        for reference_mode in modes:
+            ref_mode_dict = {"ref_mode": reference_mode, "model_name": model_name.split("/")[-1], "dataset": dataset, "results": {}}
+            
+            non_reference_modes = [mode for mode in modes if mode != reference_mode]
+            for non_ref_mode in non_reference_modes:
+                consistency_per_mode = calculate_overall_consistency(consistency_dict_correct=consistency_dict_correct, consistency_dict_wrong=consistency_dict_wrong, closed_list=[reference_mode, non_ref_mode])
+                print(f"OVERALL CONSISTENCY ({non_ref_mode} vs {reference_mode}):", consistency_per_mode)
+                ref_mode_dict["results"][non_ref_mode] = round(consistency_per_mode, 1)
+            
+            with open(f"{result_dir_path}/consistency_vs_reference.jsonl", 'a') as f:
+                json.dump(ref_mode_dict, f)
+                f.write("\n")
 
-        
+        print("--------")
+        print()
 
         with open(f"{result_dir_path}/accuracy_{dataset}.json", 'w') as f:
             json.dump(accuracy_dict, f, indent=4)
@@ -419,16 +486,9 @@ if __name__ == "__main__":
             output = [json.loads(line) for line in f.readlines()]
 
         df = pd.DataFrame(output)
-        # add column avg
-        # {"model_name": "mediphi", "dataset": "medical_genetics", "open": 92.7,  "mcq": 81.7, "incorrect": 64.6, "roman_numeral": 81.7, "fixed_pos": 78.0, "no_symbols": 67.1, "none_of_the_provided": 42.7}
-        # Add column 'avg' per modes excluding 'model_name' and 'dataset'
+        
+        modes_df = modes 
         # Transpose the dataframe to have modalities as rows and datasets as columns
-        modes_df = ['open', 'mcq', 'incorrect', 'roman_numeral', 'fixed_pos', 'no_symbols', 'none_of_the_provided']
-        if options_only_enabled:
-            modes_df = ['options_only_mcq', 'options_only_incorrect', 'options_only_roman_numeral', 
-                            'options_only_fixed_pos', 'options_only_no_symbols', 'options_only_none_of_the_provided']
-                
-
         df_modality = df.set_index('dataset')[modes_df].T
         # Compute average for MMLU datasets (excluding medqa and medmcqa)
         mmlu_datasets = ['professional_medicine', 'college_medicine', 'anatomy', 'clinical_knowledge', 'college_biology', 'medical_genetics']
@@ -452,9 +512,7 @@ if __name__ == "__main__":
             mmlu_val = df_modality.loc[modality, 'MMLU']
             vals = [v for v in [medqa_val, medmcqa_val, mmlu_val] if pd.notnull(v)]
             df_modality.loc[modality, 'avg'] = round(sum(vals) / len(vals), 1) if vals else float('nan')
-        # Add a new column 'avg' with the average across all datasets for each modality
-        #df_modality['avg'] = df_modality.mean(axis=1).round(1)
-
+        
         # Save the transposed table with averages to LaTeX
         df_modality.to_latex(f"{result_dir_path}/accuracy_summary_modality_avg.tex", float_format="%.1f")
 
