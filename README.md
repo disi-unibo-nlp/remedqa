@@ -32,6 +32,18 @@ pip install -r requirements.txt
 
 ## Data
 
+📦 **Dataset availability.**
+ReMedQA is publicly available as a Hugging Face dataset at
+**[`disi-unibo-nlp/ReMedQA`](https://huggingface.co/datasets/disi-unibo-nlp/ReMedQA)**.
+
+> ⚠️ **Important note on data usage.**
+While the full dataset can be accessed via Hugging Face, the code in this repository currently **expects the data to be available locally** as JSON files under the [`data/`](data/) directory.
+
+*If you wish to use the Hugging Face version, please download and format the dataset accordingly, or adapt the data-loading utilities to interface directly with the HF dataset. 
+Otherwise, **the repository already includes all the required data in the expected local JSON format.***
+
+---
+
 To construct ReMedQA, we draw from three widely used medical corpora, resulting in eight English-language MCQA tasks covering domains such as clinical reasoning, genetics, and anatomy.
 These datasets mirror both real-world medical scenarios and exam formats used in professional licensing and entrance tests.
 
@@ -93,6 +105,7 @@ For details on how to generate these input prompts for each mode, please refer t
 
 > When a file name includes the suffix `_think`, the prompt is specifically designed for **reasoning models**.
 
+> `option_only_mode` is supported **only** for reasoning models
 ---
 
 
@@ -116,13 +129,45 @@ These keys are required for accessing different model APIs.
 
 ## 1. Run Evaluation
 
+### Available Perturbation Modes
+
+| Mode                           | Description                                                                             |
+| ------------------------------ | --------------------------------------------------------------------------------------- |
+| `mcq` (Standard)               | Standard multiple-choice question format                                                |
+| `open`                         | Open-ended reformulation via GPT-4.1                                                    |
+| `incorrect` (Select Incorrect) | The final answer must correspond to thh three incorrect options instead of the gold one |
+| `roman_numeral`                | Options labeled with Roman numerals (I, II, etc.) instead of letters                    |
+| `none_of_the_provided`         | Replace gold answer with "None of the provided" option                                  |
+| `fixed_pos` (Fixed Position)   | Answer is always fixed to a specific position (e.g., always D)                          |
+| `no_symbols` (No Labels)       | Options presented without symbols like "(A)" or "(I)"                                   |
+
+
+### Available LLMs
+
+| **Model Name**        | **Model ID**                              | **URL**                                                    |
+| --------------------- | ----------------------------------------- | ---------------------------------------------------------- |
+| *API Models*          |                                           |                                                            |
+| Gemini-2.5-Flash      | `gemini-2.5-flash`                        | https://ai.google.dev/gemini-api/docs/models               |
+| GPT-5-mini            | `gpt-5-mini`                              | https://platform.openai.com/docs/models/gpt-5-mini         |
+| GPT-OSS-120B          | `openai/gpt-oss-120b`                     | https://www.together.ai/models/gpt-oss-120b                |
+| GPT-OSS-20B           | `openai/gpt-oss-20b`                      | https://www.together.ai/models/gpt-oss-20b                 |
+| Llama-3.3-70B         | `meta-llama/Llama-3.3-70B-Instruct-Turbo` | https://www.together.ai/models/llama-3-3-70b               |
+| *Hugging Face Models* |                                           |                                                            |
+| Llama-3-8B            | `llama3`                                  | https://huggingface.co/meta-llama/Meta-Llama-3-8B-Instruct |
+| Llama3-Med42-8B       | `Llama3-Med42-8B`                         | https://huggingface.co/m42-health/Llama3-Med42-8B          |
+| Gemma-3-4B            | `gemma3`                                  | https://huggingface.co/google/gemma-3-4b-it                |
+| MedGemma-4B           | `medgemma`                                | https://huggingface.co/google/medgemma-4b-it               |
+| Phi-3.5-mini          | `Phi-3.5-mini`                            | https://huggingface.co/microsoft/Phi-3.5-mini-instruct     |
+| MediPhi-3.8B          | `mediphi`                                 | https://huggingface.co/microsoft/MediPhi-Instruct          |
+
+
 ### Evaluating Open-Source Models (via vLLM)
 ```bash
-MODEL_TYPE="mediphi"
+MODEL_TYPE="mediphi" # medgemma # llama3 (select name from Model ID column)
 SEED=42
 BATCH_SIZE=8
 MAX_NEW_TOKENS=2000
-MODE="fixed_pos no_symbols none_of_the_provided" # select your modes
+MODE="fixed_pos no_symbols none_of_the_provided" # select your pertubation modes
 
 # ---- Loop over subsets ----
 for SUBSET in medqa medmcqa mmlu; do
@@ -157,7 +202,7 @@ done
 ```bash
 # example gemini 
 SUBSET="mmlu"
-MODEL_NAME="gemini-2.5-flash" #"gemini-2.5-flash" #"gpt-5-mini" #"openai/gpt-oss-120b" "meta-llama/Llama-3.3-70B-Instruct-Turbo" 
+MODEL_NAME="gemini-2.5-flash" #"gemini-2.5-flash" #"gpt-5-mini" #"openai/gpt-oss-120b" "meta-llama/Llama-3.3-70B-Instruct-Turbo" (select name from Model ID column)
 OUTPUT_DIR="out/completions"
 OPTIONS_ONLY_MODE=false
 
