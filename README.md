@@ -205,9 +205,9 @@ done
 > 💡 **Options-only mode**: Set `OPTIONS_ONLY_MODE=true` to test models with only answer choices visible (no question text). Only supported for reasoning models.
 
 ```bash
-# example gemini 
+# example gpt-oss-120b
 SUBSET="mmlu"
-MODEL_NAME="gemini-2.5-flash" #"gemini-2.5-flash" #"gpt-5-mini" #"openai/gpt-oss-120b" "meta-llama/Llama-3.3-70B-Instruct-Turbo" (select name from Model ID column)
+MODEL_NAME="openai/gpt-oss-120b" #"gemini-2.5-flash" #"gpt-5-mini" #"openai/gpt-oss-120b" "meta-llama/Llama-3.3-70B-Instruct-Turbo" (select name from Model ID column)
 OUTPUT_DIR="out/completions"
 OPTIONS_ONLY_MODE=false
 
@@ -240,7 +240,7 @@ To map open-ended answers back to the original multiple-choice options:
 
 ```bash
 # example on MedQA
-python3 src/llm_judge.py --subset medqa --completion_dir out/completions/mediphi
+python3 src/llm_judge.py --subset medqa --completion_dir out/completions/together_api/openai/gpt-oss-120b
 ```
 
 ### Convert Judge Predicitions
