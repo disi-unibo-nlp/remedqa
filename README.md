@@ -20,27 +20,44 @@ Our findings show that high accuracy can mask low reliability. Large models ofte
 > The repository is currently **under refactoring** to improve code structure, documentation, and usability.  
 Some components may change in the coming weeks. Please check back soon for a more stable release.
 
-## ⚙️ Installation
+---
 
+## 📋 Typical Workflow
+
+1. **Setup**: Install dependencies and configure API keys
+2. **Data Preparation**: Use existing data or regenerate (see [Data Preprocessing](#data-preprocessing-pipeline))
+3. **Run Evaluation**: Evaluate models on various perturbation modes
+4. **Judge Open Responses**: Map open-ended answers to MCQ options
+5. **Compute Metrics**: Calculate ReAcc and ReCon scores
+
+---
+
+## ⚙️ Installation
 ```bash
-git clone https://github.com/your-username/remedqa.git
+git clone https://github.com/disi-unibo-nlp/remedqa.git
 cd remedqa
 pip install -r requirements.txt
 ```
 
+**Environment Setup**
+
+Create a `.env` file in the root directory:
+```bash
+GEMINI_API_KEY=your_gemini_api_key
+HUGGINGFACE_TOKEN=your_huggingface_token
+TOGETHER_API_KEY=your_together_api_key
+OPENAI_API_KEY=your_openai_api_key
+```
+
 ---
 
-## Data
+## 📦 Data
 
-📦 **Dataset availability.**
-ReMedQA is publicly available as a Hugging Face dataset at
-**[`disi-unibo-nlp/ReMedQA`](https://huggingface.co/datasets/disi-unibo-nlp/ReMedQA)**.
+**Dataset Availability**: ReMedQA is publicly available on Hugging Face:  
+[disi-unibo-nlp/ReMedQA](https://huggingface.co/datasets/disi-unibo-nlp/ReMedQA)
 
-> ⚠️ **Important note on data usage.**
-While the full dataset can be accessed via Hugging Face, the code in this repository currently **expects the data to be available locally** as JSON files under the [`data/`](data/) directory.
-
-*If you wish to use the Hugging Face version, please download and format the dataset accordingly, or adapt the data-loading utilities to interface directly with the HF dataset. 
-Otherwise, **the repository already includes all the required data in the expected local JSON format.***
+> ⚠️ **Note**: This repository includes all required data in local JSON format under [`data/`](data/).  
+> If using the HuggingFace version, download and place files in `data/` or adapt the loading utilities.
 
 ---
 
@@ -113,20 +130,6 @@ For details on how to generate these input prompts for each mode, please refer t
 
 ## Quick Start
 
-### Environment Setup
-
-Before running any scripts, create a `.env` file in the root directory to store your API credentials.
-
-```bash
-# .env
-GEMINI_API_KEY=<your_gemini_api_key>
-HUGGINGFACE_TOKEN=<your_huggingface_token>
-TOGETHER_API_KEY=<your_together_api_key>
-OPENAI_API_KEY=<your_openai_api_key>
-```
-
-These keys are required for accessing different model APIs.
-
 ## 1. Run Evaluation
 
 ### Available Perturbation Modes
@@ -135,7 +138,7 @@ These keys are required for accessing different model APIs.
 | ------------------------------ | --------------------------------------------------------------------------------------- |
 | `mcq` (Standard)               | Standard multiple-choice question format                                                |
 | `open`                         | Open-ended reformulation via GPT-4.1                                                    |
-| `incorrect` (Select Incorrect) | The final answer must correspond to thh three incorrect options instead of the gold one |
+| `incorrect` (Select Incorrect) | The final answer must correspond to the three incorrect options instead of the gold one |
 | `roman_numeral`                | Options labeled with Roman numerals (I, II, etc.) instead of letters                    |
 | `none_of_the_provided`         | Replace gold answer with "None of the provided" option                                  |
 | `fixed_pos` (Fixed Position)   | Answer is always fixed to a specific position (e.g., always D)                          |
@@ -199,6 +202,8 @@ done
 
 ### Evaluating API Models (OpenAI, Gemini, TogetherAI)
 
+> 💡 **Options-only mode**: Set `OPTIONS_ONLY_MODE=true` to test models with only answer choices visible (no question text). Only supported for reasoning models.
+
 ```bash
 # example gemini 
 SUBSET="mmlu"
@@ -253,12 +258,10 @@ Calculate ReAcc and ReCon scores:
 
 ```bash
 MODEL_NAME="together_api/openai/gpt-oss-120b" #"openai_api/gpt-5-mini" #"together_api/openai/gpt-oss-120b" "llama3" "gemini_api/gemini-2.5-flash" #"together_api/meta-llama/Llama-3.3-70B-Instruct-Turbo"  "gemma3" "medgemma" "llama3" "Llama3-Med42-8B" "mediphi" "Phi-3.5-mini"
-OPTIONS_ONLY_MODE=false
+OPTIONS_ONLY_MODE=False
 
-echo "Evaluating API Models..."
-python3 -m src.bench_api_models \
-    --output-dir "$OUTPUT_DIR" \
-    --subset "$SUBSET" \
+echo "Computing ReAcc and ReCon scores..."
+python3 -m src.utils.calculate_rel_scores \
     --model-name "$MODEL_NAME" \
     $(if $OPTIONS_ONLY_MODE; then echo "--options-only-mode"; fi)  
 ```
